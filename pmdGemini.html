@@ -22,27 +22,30 @@
         #editor code { font-family: 'Source Code Pro', monospace; background-color: #f0f0f0; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.9em; }
         #editor pre { background-color: #2d2d2d; color: #f8f8f2; padding: 1em; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; }
         #editor pre code { background-color: transparent; padding: 0; border-radius: 0; font-size: 1em; white-space: inherit; }
+        #editor table { border-collapse: collapse; width: 100%; margin: 1.5em 0; }
+        #editor th, #editor td { border: 1px solid #ccc; padding: 10px; text-align: right; }
+        #editor th { background-color: #f7f7f7; font-weight: 700; } #editor tr:nth-child(even) { background-color: #fcfcfc; }
         #editor:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
-        
-        /* ۱. استایل‌های جدید برای جدول */
-        #editor table {
-            border-collapse: collapse;
-            width: 100%;
+
+        /* ۱. استایل‌های جدید برای عکس و زیرنویس */
+        #editor figure {
             margin: 1.5em 0;
+            text-align: center;
         }
-        #editor th, #editor td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: right; /* راست‌چین برای فارسی */
+        #editor figure img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
-        #editor th {
-            background-color: #f7f7f7;
-            font-weight: 700;
-        }
-        #editor tr:nth-child(even) {
-            background-color: #fcfcfc;
+        #editor figure figcaption {
+            margin-top: 0.8em;
+            font-size: 0.9em;
+            color: #666;
+            font-style: italic;
         }
     </style>
+</head>
 <body>
     <div id="editor" contenteditable="true" data-placeholder="اینجا بنویسید..."></div>
 
@@ -73,7 +76,10 @@
                 ? selection.anchorNode.parentElement 
                 : selection.anchorNode;
 
-            // --- ۱. اولویت اول: مدیریت تعامل داخل جدول ---
+            // --- ۱. اولویت اول: مدیریت تعامل داخل عناصر پیچیده ---
+            // این بخش اول اجرا می‌شود تا از تداخل با منطق عمومی جلوگیری کند.
+
+            // الف) تعامل داخل جدول
             const tableCell = parentElement.closest('th, td');
             if (tableCell) {
                 const currentRow = tableCell.parentElement;
@@ -124,50 +130,65 @@
                 }
             }
 
-            // --- ۲. مدیریت کلید Enter برای سایر فرمت‌ها ---
+            // --- ۲. مدیریت کلید Enter برای ایجاد عناصر بلوکی جدید ---
             if (e.key === 'Enter') {
-                const currentLineText = parentElement.textContent;
                 const pre = parentElement.closest('pre');
                 
-                // اگر داخل بلوک کد هستیم و ``` را برای خروج تایپ کردیم
-                if (pre && currentLineText.trim() === '```') {
+                // ب) تعامل داخل بلوک کد
+                if (pre) {
+                    // اگر ``` را برای خروج تایپ کردیم
+                    if (parentElement.textContent.trim() === '```') {
+                        e.preventDefault();
+                        const newPara = document.createElement('div');
+                        newPara.innerHTML = '<br>';
+                        pre.after(newPara);
+                        pre.remove();
+                        moveCursorToEnd(newPara, selection);
+                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                    }
+                    // در غیر این صورت، به رفتار پیش‌فرض Enter اجازه بده تا خط جدید بسازد
+                    return;
+                }
+
+                const currentLine = parentElement;
+                const currentLineText = currentLine.textContent.trim();
+                const previousLine = currentLine.previousElementSibling;
+                let match;
+
+                // ج) ایجاد عکس (بررسی خط فعلی) - [اصلاح شده]
+                const imageRegex = /^!\[([^\]]*)\]\(([^)]+)\)$/;
+                if ((match = currentLineText.match(imageRegex))) {
                     e.preventDefault();
+                    const altText = match[1];
+                    const imageUrl = match[2];
+                    
+                    const figure = document.createElement('figure');
+                    const img = document.createElement('img');
+                    img.src = imageUrl;
+                    img.alt = altText;
+                    figure.appendChild(img);
+                    
+                    if (altText) {
+                        const figcaption = document.createElement('figcaption');
+                        figcaption.textContent = altText;
+                        figure.appendChild(figcaption);
+                    }
+
                     const newPara = document.createElement('div');
                     newPara.innerHTML = '<br>';
-                    pre.after(newPara);
-                    pre.remove(); // کل بلوک کد را حذف کن
+
+                    currentLine.replaceWith(figure);
+                    figure.after(newPara);
                     moveCursorToEnd(newPara, selection);
+                    
                     localStorage.setItem('mySmartNote', editor.innerHTML);
                     return;
                 }
                 
-                // اگر داخل بلوک کد هستیم، رفتار پیش‌فرض Enter (ایجاد خط جدید) را اجازه بده
-                if (pre) {
-                    return;
-                }
-
-                // اگر می‌خواهیم یک بلوک کد جدید ایجاد کنیم
-                if (currentLineText.trim().startsWith('```')) {
-                    e.preventDefault();
-                    const lang = currentLineText.trim().substring(3);
-                    const newPre = document.createElement('pre');
-                    const newCode = document.createElement('code');
-                    if(lang) newCode.className = `language-${lang}`;
-                    newCode.innerHTML = '<br>';
-                    newPre.appendChild(newCode);
-                    parentElement.replaceWith(newPre);
-                    moveCursorToEnd(newCode, selection);
-                    localStorage.setItem('mySmartNote', editor.innerHTML);
-                    return;
-                }
-
-                // منطق ایجاد جدول
-                const separatorLine = parentElement;
-                const headerLine = separatorLine.previousElementSibling;
+                // د) ایجاد جدول (بررسی خط فعلی و قبلی)
                 const separatorRegex = /^\|(?:\s*:?-+:?\s*\|)+$/;
-
-                if (headerLine && separatorLine.textContent.trim().match(separatorRegex)) {
-                    const headers = headerLine.textContent.split('|').slice(1, -1).map(h => h.trim());
+                if (previousLine && currentLineText.match(separatorRegex)) {
+                    const headers = previousLine.textContent.split('|').slice(1, -1).map(h => h.trim());
                     if (headers.length > 0) {
                         e.preventDefault();
                         const table = document.createElement('table');
@@ -181,18 +202,32 @@
                         const tbody = table.createTBody();
                         const firstDataRow = tbody.insertRow();
                         for (let i = 0; i < headers.length; i++) { firstDataRow.insertCell(i); }
-                        headerLine.replaceWith(table);
-                        separatorLine.remove();
+                        previousLine.replaceWith(table);
+                        currentLine.remove();
                         moveCursorToEnd(firstDataRow.cells[0], selection);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                         return;
                     }
                 }
 
-                // منطق ادامه و خروج از لیست‌ها
+                // ه) ایجاد بلوک کد (بررسی خط فعلی)
+                if (currentLineText.startsWith('```')) {
+                    e.preventDefault();
+                    const lang = currentLineText.substring(3);
+                    const newPre = document.createElement('pre');
+                    const newCode = document.createElement('code');
+                    if (lang) newCode.className = `language-${lang}`;
+                    newCode.innerHTML = '<br>';
+                    newPre.appendChild(newCode);
+                    currentLine.replaceWith(newPre);
+                    moveCursorToEnd(newCode, selection);
+                    localStorage.setItem('mySmartNote', editor.innerHTML);
+                    return;
+                }
+
+                // و) ادامه و خروج از لیست‌ها
                 const listItem = parentElement.closest('li');
                 if (listItem) {
-                    // اگر آیتم لیست خالی است، از لیست خارج شو
                     if (listItem.textContent.trim() === '') {
                         e.preventDefault();
                         const list = listItem.parentElement;
@@ -205,7 +240,6 @@
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                         return;
                     }
-                    // اگر آیتم بازبینه است، یک آیتم بازبینه جدید بساز
                     if (listItem.classList.contains('checklist-item')) {
                         e.preventDefault();
                         const newLi = createChecklistItem('', false);
