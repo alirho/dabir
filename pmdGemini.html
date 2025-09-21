@@ -13,16 +13,27 @@
         #editor blockquote { border-right: 4px solid #e0e0e0; padding-right: 1.5em; margin: 1em 0; color: #555; background-color: #f9f9f9; }
         #editor strong { font-weight: 700; } #editor em { font-style: italic; } #editor del { text-decoration: line-through; color: #888; }
         #editor a { color: #007bff; text-decoration: none; cursor: pointer; } #editor a:hover { text-decoration: underline; }
+        #editor ol, #editor ul { padding-right: 2em; margin: 1em 0; }
+        #editor li { padding-right: 0.5em; margin-bottom: 0.5em; }
         #editor:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
 
-        /* ۱. استایل برای لیست نامرتب اضافه شد */
-        #editor ul, #editor ol {
-            padding-right: 2em;
-            margin: 1em 0;
+        /* ۱. استایل‌های جدید برای بازبینه (Checklist) */
+        #editor ul.checklist {
+            list-style-type: none; /* حذف گلوله‌های پیش‌فرض لیست */
+            padding-right: 0;
         }
-        #editor li {
-            padding-right: 0.5em;
-            margin-bottom: 0.5em;
+        #editor li.checklist-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer; /* نمایش نشانگر دست برای کلیک */
+        }
+        #editor li.checklist-item input[type="checkbox"] {
+            margin-left: 0.75em;
+            pointer-events: none; /* جلوگیری از کلیک مستقیم روی خود چک‌باکس */
+        }
+        #editor li.checklist-item.checked {
+            text-decoration: line-through;
+            color: #888;
         }
     </style>
 </head>
@@ -33,80 +44,90 @@
         const editor = document.getElementById('editor');
         window.addEventListener('load', () => { const savedContent = localStorage.getItem('mySmartNote'); if (savedContent) { editor.innerHTML = savedContent; } });
         editor.addEventListener('input', () => { localStorage.setItem('mySmartNote', editor.innerHTML); });
-        editor.addEventListener('click', (e) => { if (e.target.tagName === 'A') { e.preventDefault(); window.open(e.target.href, '_blank'); } });
 
-        editor.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const selection = window.getSelection();
-                if (!selection.rangeCount) return;
+        // ۲. بازنویسی listener کلیک برای مدیریت لینک و بازبینه
+        editor.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            const checklistItem = e.target.closest('li.checklist-item');
 
-                const parentElement = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentElement : selection.anchorNode;
-                const blockquote = parentElement.closest('blockquote');
-                const listItem = parentElement.closest('li');
-
-                if (blockquote && parentElement.textContent.trim() === '' && parentElement !== blockquote) {
-                    e.preventDefault();
-                    const newPara = document.createElement('div'); newPara.innerHTML = '<br>';
-                    blockquote.after(newPara);
-                    parentElement.remove();
-                    moveCursorToEnd(newPara, selection);
-                    localStorage.setItem('mySmartNote', editor.innerHTML);
-                    return;
-                }
-
-                // ۲. این منطق حالا هم برای لیست مرتب و هم نامرتب کار می‌کند (بدون نیاز به تغییر)
-                if (listItem) {
-                    if (listItem.textContent.trim() === '') {
-                        e.preventDefault();
-                        const listElement = listItem.parentElement; // (ul or ol)
-                        const newPara = document.createElement('div'); newPara.innerHTML = '<br>';
-                        listElement.after(newPara);
-                        listItem.remove();
-                        if (listElement.children.length === 0) { listElement.remove(); }
-                        moveCursorToEnd(newPara, selection);
-                    } else {
-                        e.preventDefault();
-                        const newLi = document.createElement('li'); newLi.innerHTML = '<br>';
-                        listItem.after(newLi);
-                        moveCursorToEnd(newLi, selection);
-                    }
+            if (link) {
+                e.preventDefault();
+                window.open(link.href, '_blank');
+            } else if (checklistItem) {
+                e.preventDefault(); // جلوگیری از قرار گرفتن مکان‌نما
+                const checkbox = checklistItem.querySelector('input[type="checkbox"]');
+                if (checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    checklistItem.classList.toggle('checked', checkbox.checked);
                     localStorage.setItem('mySmartNote', editor.innerHTML);
                 }
             }
         });
+        
+         // ۳. بازنویسی listener برای Enter جهت مدیریت خروج از لیست و بازبینه
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const selection = window.getSelection();
+                if (!selection.rangeCount) return;
+                const parentElement = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentElement : selection.anchorNode;
+                const listItem = parentElement.closest('li');
 
-        editor.addEventListener('keyup', (e) => {
+                if (listItem && listItem.textContent.trim() === '') {
+                    e.preventDefault();
+                    const list = listItem.parentElement;
+                    const newPara = document.createElement('div');
+                    newPara.innerHTML = '<br>';
+                    list.after(newPara);
+                    listItem.remove();
+                    if (list.children.length === 0) { list.remove(); }
+                    moveCursorToEnd(newPara, selection);
+                    localStorage.setItem('mySmartNote', editor.innerHTML);
+                    return;
+                }
+                
+                // ایجاد آیتم جدید بازبینه با زدن Enter
+                if (listItem && listItem.classList.contains('checklist-item')) {
+                    e.preventDefault();
+                    const newLi = createChecklistItem('', false);
+                    listItem.after(newLi);
+                    moveCursorToEnd(newLi, selection);
+                    localStorage.setItem('mySmartNote', editor.innerHTML);
+                    return;
+                }
+            }
+        });
+editor.addEventListener('keyup', (e) => {
             if (e.key === ' ') {
                 const selection = window.getSelection();
                 if (!selection.rangeCount) return;
-
                 const range = selection.getRangeAt(0);
                 const node = range.startContainer;
-
                 if (node.nodeType === Node.TEXT_NODE) {
                     const text = node.textContent.substring(0, range.startOffset);
                     let match;
                     
-                    if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) { /* ... منطق عنوان‌ها ... */ const parentBlock = node.parentElement; if (parentBlock && parentBlock.parentElement === editor) { const level = match[1].length; const content = match[2]; const newHeading = document.createElement(`h${level}`); newHeading.textContent = content; editor.replaceChild(newHeading, parentBlock); moveCursorToEnd(newHeading, selection); localStorage.setItem('mySmartNote', editor.innerHTML); return; } }
-                    else if ((match = text.match(/^> ([^\n]*?)\s$/))) { /* ... منطق نقل‌قول ... */ const parentBlock = node.parentElement; if (parentBlock && parentBlock.parentElement === editor) { const content = match[1]; const newQuote = document.createElement('blockquote'); if (content === '') { newQuote.appendChild(document.createElement('br')); } else { newQuote.textContent = content; } editor.replaceChild(newQuote, parentBlock); moveCursorToEnd(newQuote, selection); localStorage.setItem('mySmartNote', editor.innerHTML); return; } }
-                    else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) { /* ... منطق لیست مرتب ... */ const parentBlock = node.parentElement; if (parentBlock && parentBlock.parentElement === editor) { const content = match[2]; const ol = document.createElement('ol'); const li = document.createElement('li'); const startNum = parseInt(match[1], 10); if (startNum > 1) { ol.setAttribute('start', startNum); } if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } ol.appendChild(li); editor.replaceChild(ol, parentBlock); moveCursorToEnd(li, selection); localStorage.setItem('mySmartNote', editor.innerHTML); return; } }
-                    // ۳. منطق جدید برای ایجاد لیست نامرتب اضافه شد
-                    else if ((match = text.match(/^- ([^\n]*?)\s$/))) {
-                        const parentBlock = node.parentElement;
-                        if (parentBlock && parentBlock.parentElement === editor) {
-                            const content = match[1];
+                    const parentBlock = node.parentElement;
+                    if (!parentBlock || parentBlock.parentElement !== editor) {
+                        // اگر داخل فرمت دیگری هستیم، پردازش نکن
+                        // ...
+                    } else {
+                        // ۴. منطق ایجاد بازبینه اضافه شد (با اولویت بالاتر از لیست نامرتب)
+                        if ((match = text.match(/^- \[([ xX]?)\] ([^\n]*?)\s$/))) {
+                            const isChecked = match[1].toLowerCase() === 'x';
+                            const content = match[2];
                             const ul = document.createElement('ul');
-                            const li = document.createElement('li');
-
-                            if (content === '') { li.appendChild(document.createElement('br')); } 
-                            else { li.textContent = content; }
-                            
+                            ul.className = 'checklist';
+                            const li = createChecklistItem(content, isChecked);
                             ul.appendChild(li);
                             editor.replaceChild(ul, parentBlock);
                             moveCursorToEnd(li, selection);
                             localStorage.setItem('mySmartNote', editor.innerHTML);
                             return;
                         }
+                        else if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) { /* ... منطق عنوان‌ها ... */ const level = match[1].length; const content = match[2]; const newHeading = document.createElement(`h${level}`); newHeading.textContent = content; editor.replaceChild(newHeading, parentBlock); moveCursorToEnd(newHeading, selection); return; }
+                        else if ((match = text.match(/^> ([^\n]*?)\s$/))) { /* ... منطق نقل‌قول ... */ const content = match[1]; const newQuote = document.createElement('blockquote'); if (content === '') { newQuote.appendChild(document.createElement('br')); } else { newQuote.textContent = content; } editor.replaceChild(newQuote, parentBlock); moveCursorToEnd(newQuote, selection); return; }
+                        else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) { /* ... منطق لیست مرتب ... */ const content = match[2]; const ol = document.createElement('ol'); const li = document.createElement('li'); const startNum = parseInt(match[1], 10); if (startNum > 1) { ol.setAttribute('start', startNum); } if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } ol.appendChild(li); editor.replaceChild(ol, parentBlock); moveCursorToEnd(li, selection); return; }
+                        else if ((match = text.match(/^([*-])\s([^\n]*?)\s$/))) { /* ... منطق لیست نامرتب ... */ const content = match[2]; const ul = document.createElement('ul'); const li = document.createElement('li'); if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } ul.appendChild(li); editor.replaceChild(ul, parentBlock); moveCursorToEnd(li, selection); return; }
                     }
                     
                     if ((match = text.match(/\[([^\]]+)\]\(([^)]+)\)\s$/))) { /* ... منطق پیوند ... */ replaceMarkdown(node, match, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; }); }
@@ -116,6 +137,30 @@
                 }
             }
         });
+
+        function createChecklistItem(content, isChecked) {
+            const li = document.createElement('li');
+            li.className = 'checklist-item';
+            if (isChecked) {
+                li.classList.add('checked');
+            }
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = isChecked;
+            checkbox.disabled = true; // برای جلوگیری از تعامل مستقیم
+
+            li.appendChild(checkbox);
+            
+            // برای اینکه مکان‌نما بعد از چک‌باکس قرار بگیرد
+            const textNode = document.createTextNode(content || '');
+            li.appendChild(textNode);
+            if (content === '') {
+                li.appendChild(document.createElement('br'));
+            }
+            
+            return li;
+        }
         
         function moveCursorToEnd(element, selection) { const range = document.createRange(); range.selectNodeContents(element); range.collapse(false); selection.removeAllRanges(); selection.addRange(range); }
         function replaceMarkdown(textNode, match, createFn) { if (textNode.parentElement.closest('a, strong, em, del, h1, h2, h3, h4, li')) return; const range = document.createRange(); range.setStart(textNode, match.index); range.setEnd(textNode, match.index + match[0].length - 1); range.deleteContents(); const newElement = createFn(match); range.insertNode(newElement); range.setStartAfter(newElement); range.collapse(true); const spaceNode = document.createTextNode('\u00A0'); range.insertNode(spaceNode); range.setStartAfter(spaceNode); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); localStorage.setItem('mySmartNote', editor.innerHTML); }
