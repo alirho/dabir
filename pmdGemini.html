@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>یادداشت هوشمند</title>
     <style>
-        /* ... بخش CSS کاملاً بدون تغییر باقی می‌ماند ... */
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+        /* ۱. فونت مخصوص کد اضافه شد */
+        @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap');
+
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f0f2f5; margin: 0; padding: 2rem; color: #333; }
         #editor { background-color: white; max-width: 800px; min-height: 90vh; margin: 0 auto; padding: 50px; box-shadow: 0 0 15px rgba(0,0,0,0.1); outline: none; font-size: 18px; line-height: 1.8; white-space: pre-wrap; }
         #editor h1, #editor h2, #editor h3, #editor h4 { margin: 1.5em 0 0.5em; line-height: 1.3; font-weight: 700; }
@@ -21,6 +23,33 @@
         #editor li.checklist-item input[type="checkbox"] { margin-left: 0.75em; pointer-events: none; }
         #editor li.checklist-item.checked { text-decoration: line-through; color: #888; }
         #editor:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
+
+        /* ۲. استایل‌های جدید برای کد تک‌خطی و چندخطی */
+        /* کد تک‌خطی */
+        #editor code {
+            font-family: 'Source Code Pro', monospace;
+            background-color: #f0f0f0;
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        /* بلوک کد چندخطی */
+        #editor pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap; /* برای شکستن خطوط طولانی */
+        }
+        /* استایل کد داخل بلوک */
+        #editor pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: 1em; /* اندازه فونت اصلی */
+            white-space: inherit; /* ارث‌بری از pre */
+        }
     </style>
 <body>
     <div id="editor" contenteditable="true" data-placeholder="اینجا بنویسید..."></div>
@@ -49,6 +78,36 @@
                 const selection = window.getSelection();
                 if (!selection.rangeCount) return;
                 const parentElement = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentElement : selection.anchorNode;
+                const currentLineText = parentElement.textContent;
+
+                // ۳. منطق ایجاد و خروج از بلوک کد
+                const pre = parentElement.closest('pre');
+                // اگر داخل بلوک کد هستیم و ``` را برای خروج تایپ کردیم
+                if (pre && currentLineText.trim() === '```') {
+                    e.preventDefault();
+                    const newPara = document.createElement('div');
+                    newPara.innerHTML = '<br>';
+                    pre.after(newPara);
+                    // حذف خط ``` از داخل بلوک کد
+                    if (parentElement.tagName === 'CODE') parentElement.parentElement.remove();
+                    else parentElement.remove();
+                    moveCursorToEnd(newPara, selection);
+                    return;
+                }
+
+                // اگر می‌خواهیم یک بلوک کد جدید ایجاد کنیم
+                if (currentLineText.trim().startsWith('```')) {
+                    e.preventDefault();
+                    const lang = currentLineText.trim().substring(3);
+                    const newPre = document.createElement('pre');
+                    const newCode = document.createElement('code');
+                    if(lang) newCode.className = `language-${lang}`;
+                    newCode.innerHTML = '<br>'; // برای اینکه مکان‌نما داخلش قرار بگیره
+                    newPre.appendChild(newCode);
+                    parentElement.replaceWith(newPre);
+                    moveCursorToEnd(newCode, selection);
+                    return;
+                }
                 const listItem = parentElement.closest('li');
                 if (listItem && listItem.textContent.trim() === '') {
                     e.preventDefault();
@@ -79,6 +138,12 @@
                 if (!selection.rangeCount) return;
                 const range = selection.getRangeAt(0);
                 const node = range.startContainer;
+
+                // ۴. اگر داخل بلوک کد هستیم، هیچ فرمتی را اجرا نکن
+                if (node.parentElement.closest('pre')) {
+                    return;
+                }
+
                 // ۱. ابتدا منطق "ارتقاء" را بررسی می‌کنیم
                 const parentLi = node.parentElement.closest('li');
                 if (parentLi) {
@@ -124,7 +189,14 @@
                             return; 
                         }
                     }
-                    
+                    // ۵. اضافه شدن منطق کد تک‌خطی
+                    if ((match = text.match(/`([^`]+)`\s$/))) {
+                        replaceMarkdown(node, match, (m) => {
+                            const code = document.createElement('code');
+                            code.textContent = m[1];
+                            return code;
+                        });
+                    }
                     if ((match = text.match(/\[([^\]]+)\]\(([^)]+)\)\s$/))) { /* ... منطق پیوند ... */ replaceMarkdown(node, match, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; }); }
                     else if ((match = text.match(/\*\*([^\*]+)\*\*\s$/))) { /* ... منطق پررنگ ... */ replaceMarkdown(node, match, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; }); }
                     else if ((match = text.match(/\*([^\*]+)\*\s$/))) { /* ... منطق کج ... */ replaceMarkdown(node, match, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; }); }
@@ -158,7 +230,7 @@
         }
         
         function moveCursorToEnd(element, selection) { const range = document.createRange(); range.selectNodeContents(element); range.collapse(false); selection.removeAllRanges(); selection.addRange(range); }
-        function replaceMarkdown(textNode, match, createFn) { if (textNode.parentElement.closest('a, strong, em, del, h1, h2, h3, h4, li')) return; const range = document.createRange(); range.setStart(textNode, match.index); range.setEnd(textNode, match.index + match[0].length - 1); range.deleteContents(); const newElement = createFn(match); range.insertNode(newElement); range.setStartAfter(newElement); range.collapse(true); const spaceNode = document.createTextNode('\u00A0'); range.insertNode(spaceNode); range.setStartAfter(spaceNode); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); localStorage.setItem('mySmartNote', editor.innerHTML); }
+        function replaceMarkdown(textNode, match, createFn) { if (textNode.parentElement.closest('a, strong, em, del, h1, h2, h3, h4, li, code, pre')) return; const range = document.createRange(); range.setStart(textNode, match.index); range.setEnd(textNode, match.index + match[0].length - 1); range.deleteContents(); const newElement = createFn(match); range.insertNode(newElement); range.setStartAfter(newElement); range.collapse(true); const spaceNode = document.createTextNode('\u00A0'); range.insertNode(spaceNode); range.setStartAfter(spaceNode); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); localStorage.setItem('mySmartNote', editor.innerHTML); }
         editor.addEventListener('paste', (e) => { e.preventDefault(); const text = (e.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, text); });
     </script>
 </body>
