@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>یادداشت هوشمند</title>
     <style>
+        /* ... بخش CSS کاملاً بدون تغییر باقی می‌ماند ... */
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
         body { font-family: 'Vazirmatn', sans-serif; background-color: #f0f2f5; margin: 0; padding: 2rem; color: #333; }
         #editor { background-color: white; max-width: 800px; min-height: 90vh; margin: 0 auto; padding: 50px; box-shadow: 0 0 15px rgba(0,0,0,0.1); outline: none; font-size: 18px; line-height: 1.8; white-space: pre-wrap; }
@@ -15,28 +16,12 @@
         #editor a { color: #007bff; text-decoration: none; cursor: pointer; } #editor a:hover { text-decoration: underline; }
         #editor ol, #editor ul { padding-right: 2em; margin: 1em 0; }
         #editor li { padding-right: 0.5em; margin-bottom: 0.5em; }
+        #editor ul.checklist { list-style-type: none; padding-right: 0; }
+        #editor li.checklist-item { display: flex; align-items: center; cursor: pointer; }
+        #editor li.checklist-item input[type="checkbox"] { margin-left: 0.75em; pointer-events: none; }
+        #editor li.checklist-item.checked { text-decoration: line-through; color: #888; }
         #editor:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
-
-        /* ۱. استایل‌های جدید برای بازبینه (Checklist) */
-        #editor ul.checklist {
-            list-style-type: none; /* حذف گلوله‌های پیش‌فرض لیست */
-            padding-right: 0;
-        }
-        #editor li.checklist-item {
-            display: flex;
-            align-items: center;
-            cursor: pointer; /* نمایش نشانگر دست برای کلیک */
-        }
-        #editor li.checklist-item input[type="checkbox"] {
-            margin-left: 0.75em;
-            pointer-events: none; /* جلوگیری از کلیک مستقیم روی خود چک‌باکس */
-        }
-        #editor li.checklist-item.checked {
-            text-decoration: line-through;
-            color: #888;
-        }
     </style>
-</head>
 <body>
     <div id="editor" contenteditable="true" data-placeholder="اینجا بنویسید..."></div>
 
@@ -44,17 +29,12 @@
         const editor = document.getElementById('editor');
         window.addEventListener('load', () => { const savedContent = localStorage.getItem('mySmartNote'); if (savedContent) { editor.innerHTML = savedContent; } });
         editor.addEventListener('input', () => { localStorage.setItem('mySmartNote', editor.innerHTML); });
-
-        // ۲. بازنویسی listener کلیک برای مدیریت لینک و بازبینه
         editor.addEventListener('click', (e) => {
             const link = e.target.closest('a');
             const checklistItem = e.target.closest('li.checklist-item');
-
-            if (link) {
+            if (link) { e.preventDefault(); window.open(link.href, '_blank'); } 
+            else if (checklistItem) {
                 e.preventDefault();
-                window.open(link.href, '_blank');
-            } else if (checklistItem) {
-                e.preventDefault(); // جلوگیری از قرار گرفتن مکان‌نما
                 const checkbox = checklistItem.querySelector('input[type="checkbox"]');
                 if (checkbox) {
                     checkbox.checked = !checkbox.checked;
@@ -64,14 +44,12 @@
             }
         });
         
-         // ۳. بازنویسی listener برای Enter جهت مدیریت خروج از لیست و بازبینه
-        editor.addEventListener('keydown', (e) => {
+         editor.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const selection = window.getSelection();
                 if (!selection.rangeCount) return;
                 const parentElement = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentElement : selection.anchorNode;
                 const listItem = parentElement.closest('li');
-
                 if (listItem && listItem.textContent.trim() === '') {
                     e.preventDefault();
                     const list = listItem.parentElement;
@@ -84,8 +62,6 @@
                     localStorage.setItem('mySmartNote', editor.innerHTML);
                     return;
                 }
-                
-                // ایجاد آیتم جدید بازبینه با زدن Enter
                 if (listItem && listItem.classList.contains('checklist-item')) {
                     e.preventDefault();
                     const newLi = createChecklistItem('', false);
@@ -96,38 +72,57 @@
                 }
             }
         });
-editor.addEventListener('keyup', (e) => {
+
+        editor.addEventListener('keyup', (e) => {
             if (e.key === ' ') {
                 const selection = window.getSelection();
                 if (!selection.rangeCount) return;
                 const range = selection.getRangeAt(0);
                 const node = range.startContainer;
+                // ۱. ابتدا منطق "ارتقاء" را بررسی می‌کنیم
+                const parentLi = node.parentElement.closest('li');
+                if (parentLi) {
+                    const liText = parentLi.textContent;
+                    let match;
+                    // اگر داخل یک آیتم لیست هستیم و الگوی بازبینه تایپ شد
+                    if ((match = liText.match(/^\[([ xX]?)\]\s$/))) {
+                        const isChecked = match[1].toLowerCase() === 'x';
+                        const list = parentLi.parentElement;
+                        
+                        // کل لیست را به بازبینه تبدیل کن
+                        list.classList.add('checklist');
+                        
+                        // این آیتم را به آیتم بازبینه تبدیل کن
+                        const newChecklistItem = createChecklistItem('', isChecked);
+                        parentLi.replaceWith(newChecklistItem);
+                        moveCursorToEnd(newChecklistItem, selection);
+                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                        return;
+                    }
+                }
                 if (node.nodeType === Node.TEXT_NODE) {
                     const text = node.textContent.substring(0, range.startOffset);
                     let match;
-                    
                     const parentBlock = node.parentElement;
-                    if (!parentBlock || parentBlock.parentElement !== editor) {
-                        // اگر داخل فرمت دیگری هستیم، پردازش نکن
+
+                    // ۲. سپس منطق ایجاد فرمت‌های بلوکی جدید را اجرا می‌کنیم
+                    if (parentBlock && parentBlock.parentElement === editor) {
+                        // منطق ایجاد بازبینه از ابتدا (حذف شد چون با منطق ارتقا تداخل دارد)
                         // ...
-                    } else {
-                        // ۴. منطق ایجاد بازبینه اضافه شد (با اولویت بالاتر از لیست نامرتب)
-                        if ((match = text.match(/^- \[([ xX]?)\] ([^\n]*?)\s$/))) {
-                            const isChecked = match[1].toLowerCase() === 'x';
-                            const content = match[2];
-                            const ul = document.createElement('ul');
-                            ul.className = 'checklist';
-                            const li = createChecklistItem(content, isChecked);
-                            ul.appendChild(li);
-                            editor.replaceChild(ul, parentBlock);
-                            moveCursorToEnd(li, selection);
-                            localStorage.setItem('mySmartNote', editor.innerHTML);
-                            return;
-                        }
-                        else if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) { /* ... منطق عنوان‌ها ... */ const level = match[1].length; const content = match[2]; const newHeading = document.createElement(`h${level}`); newHeading.textContent = content; editor.replaceChild(newHeading, parentBlock); moveCursorToEnd(newHeading, selection); return; }
+                        if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) { /* ... منطق عنوان‌ها ... */ const level = match[1].length; const content = match[2]; const newHeading = document.createElement(`h${level}`); newHeading.textContent = content; editor.replaceChild(newHeading, parentBlock); moveCursorToEnd(newHeading, selection); return; }
                         else if ((match = text.match(/^> ([^\n]*?)\s$/))) { /* ... منطق نقل‌قول ... */ const content = match[1]; const newQuote = document.createElement('blockquote'); if (content === '') { newQuote.appendChild(document.createElement('br')); } else { newQuote.textContent = content; } editor.replaceChild(newQuote, parentBlock); moveCursorToEnd(newQuote, selection); return; }
                         else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) { /* ... منطق لیست مرتب ... */ const content = match[2]; const ol = document.createElement('ol'); const li = document.createElement('li'); const startNum = parseInt(match[1], 10); if (startNum > 1) { ol.setAttribute('start', startNum); } if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } ol.appendChild(li); editor.replaceChild(ol, parentBlock); moveCursorToEnd(li, selection); return; }
-                        else if ((match = text.match(/^([*-])\s([^\n]*?)\s$/))) { /* ... منطق لیست نامرتب ... */ const content = match[2]; const ul = document.createElement('ul'); const li = document.createElement('li'); if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } ul.appendChild(li); editor.replaceChild(ul, parentBlock); moveCursorToEnd(li, selection); return; }
+                        // ۳. منطق ایجاد لیست نامرتب (بدون تغییر)
+                        else if ((match = text.match(/^([*-])\s([^\n]*?)\s$/))) { 
+                            const content = match[2]; 
+                            const ul = document.createElement('ul'); 
+                            const li = document.createElement('li'); 
+                            if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } 
+                            ul.appendChild(li); 
+                            editor.replaceChild(ul, parentBlock); 
+                            moveCursorToEnd(li, selection); 
+                            return; 
+                        }
                     }
                     
                     if ((match = text.match(/\[([^\]]+)\]\(([^)]+)\)\s$/))) { /* ... منطق پیوند ... */ replaceMarkdown(node, match, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; }); }
