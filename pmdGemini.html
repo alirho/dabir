@@ -8,36 +8,203 @@
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap');
 
-        body { font-family: 'Vazirmatn', sans-serif; background-color: #f0f2f5; margin: 0; padding: 2rem; color: #333; }
-        #editor { background-color: white; max-width: 800px; min-height: 90vh; margin: 0 auto; padding: 50px; box-shadow: 0 0 15px rgba(0,0,0,0.1); outline: none; font-size: 18px; line-height: 1.8; white-space: pre-wrap; }
-        #editor h1, #editor h2, #editor h3, #editor h4 { margin: 1.5em 0 0.5em; line-height: 1.3; font-weight: 700; }
-        #editor h1 { font-size: 2em; } #editor h2 { font-size: 1.75em; } #editor h3 { font-size: 1.5em; } #editor h4 { font-size: 1.25em; }
-        #editor blockquote { border-right: 4px solid #e0e0e0; padding-right: 1.5em; margin: 1em 0; color: #555; background-color: #f9f9f9; }
-        #editor strong { font-weight: 700; } #editor em { font-style: italic; } #editor del { text-decoration: line-through; color: #888; }
-        #editor a { color: #007bff; text-decoration: none; cursor: pointer; } #editor a:hover { text-decoration: underline; }
-        #editor ol, #editor ul { padding-right: 2em; margin: 1em 0; } #editor li { padding-right: 0.5em; margin-bottom: 0.5em; }
-        #editor ul.checklist { list-style-type: none; padding-right: 0; } #editor li.checklist-item { display: flex; align-items: center; cursor: pointer; }
-        #editor li.checklist-item input[type="checkbox"] { margin-left: 0.75em; pointer-events: none; }
-        #editor li.checklist-item.checked { text-decoration: line-through; color: #888; }
-        #editor code { font-family: 'Source Code Pro', monospace; background-color: #f0f0f0; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.9em; }
-        #editor pre { background-color: #2d2d2d; color: #f8f8f2; padding: 1em; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; }
-        #editor pre code { background-color: transparent; padding: 0; border-radius: 0; font-size: 1em; white-space: inherit; }
-        #editor table { border-collapse: collapse; width: 100%; margin: 1.5em 0; }
-        #editor th, #editor td { border: 1px solid #ccc; padding: 10px; text-align: right; }
-        #editor th { background-color: #f7f7f7; font-weight: 700; } #editor tr:nth-child(even) { background-color: #fcfcfc; }
-        #editor:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 2rem;
+            color: #333;
+        }
+
+        #editor {
+            background-color: white;
+            max-width: 800px;
+            min-height: 90vh;
+            margin: 0 auto;
+            padding: 50px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            outline: none;
+            font-size: 18px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+        }
+
+        #editor h1,
+        #editor h2,
+        #editor h3,
+        #editor h4 {
+            margin: 1.5em 0 0.5em;
+            line-height: 1.3;
+            font-weight: 700;
+        }
+
+        #editor h1 {
+            font-size: 2em;
+        }
+
+        #editor h2 {
+            font-size: 1.75em;
+        }
+
+        #editor h3 {
+            font-size: 1.5em;
+        }
+
+        #editor h4 {
+            font-size: 1.25em;
+        }
+
+        #editor blockquote {
+            border-right: 4px solid #e0e0e0;
+            padding-right: 1.5em;
+            margin: 1em 0;
+            color: #555;
+            background-color: #f9f9f9;
+        }
+
+        #editor strong {
+            font-weight: 700;
+        }
+
+        #editor em {
+            font-style: italic;
+        }
+
+        #editor del {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        #editor a {
+            color: #007bff;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        #editor a:hover {
+            text-decoration: underline;
+        }
+
+        #editor ol,
+        #editor ul {
+            padding-right: 2em;
+            margin: 1em 0;
+        }
+
+        #editor li {
+            padding-right: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
+        /* استایل‌های جدید برای لیست‌های تودرتو */
+        #editor ul ul {
+            list-style-type: circle;
+        }
+
+        #editor ul ul ul {
+            list-style-type: square;
+        }
+
+        #editor ul ul ul ul {
+            list-style-type: disc;
+        }
+
+        #editor ul ul,
+        #editor ol ol,
+        #editor ol ul,
+        #editor ul ol {
+            margin-right: 25px;
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
+        #editor ul.checklist {
+            list-style-type: none;
+            padding-right: 0;
+        }
+
+        #editor li.checklist-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #editor li.checklist-item input[type="checkbox"] {
+            margin-left: 0.75em;
+            pointer-events: none;
+        }
+
+        #editor li.checklist-item.checked {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        #editor code {
+            font-family: 'Source Code Pro', monospace;
+            background-color: #f0f0f0;
+            padding: 0.1em 0.4em;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        #editor pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 1em;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        #editor pre code {
+            background-color: transparent;
+            padding: 0;
+            border-radius: 0;
+            font-size: 1em;
+            white-space: inherit;
+        }
+
+        #editor table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1.5em 0;
+        }
+
+        #editor th,
+        #editor td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: right;
+        }
+
+        #editor th {
+            background-color: #f7f7f7;
+            font-weight: 700;
+        }
+
+        #editor tr:nth-child(even) {
+            background-color: #fcfcfc;
+        }
+
+        #editor:empty:before {
+            content: attr(data-placeholder);
+            color: #999;
+            pointer-events: none;
+        }
 
         /* ۱. استایل‌های جدید برای عکس و زیرنویس */
         #editor figure {
             margin: 1.5em 0;
             text-align: center;
         }
+
         #editor figure img {
             max-width: 100%;
             height: auto;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+
         #editor figure figcaption {
             margin-top: 0.8em;
             font-size: 0.9em;
@@ -51,13 +218,22 @@
 
     <script>
         const editor = document.getElementById('editor');
-        window.addEventListener('load', () => { const savedContent = localStorage.getItem('mySmartNote'); if (savedContent) { editor.innerHTML = savedContent; } });
-        editor.addEventListener('input', () => { localStorage.setItem('mySmartNote', editor.innerHTML); });
+        window.addEventListener('load', () => {
+            const savedContent = localStorage.getItem('mySmartNote');
+            if (savedContent) {
+                editor.innerHTML = savedContent;
+            }
+        });
+        editor.addEventListener('input', () => {
+            localStorage.setItem('mySmartNote', editor.innerHTML);
+        });
         editor.addEventListener('click', (e) => {
             const link = e.target.closest('a');
             const checklistItem = e.target.closest('li.checklist-item');
-            if (link) { e.preventDefault(); window.open(link.href, '_blank'); } 
-            else if (checklistItem) {
+            if (link) {
+                e.preventDefault();
+                window.open(link.href, '_blank');
+            } else if (checklistItem) {
                 e.preventDefault();
                 const checkbox = checklistItem.querySelector('input[type="checkbox"]');
                 if (checkbox) {
@@ -67,30 +243,68 @@
                 }
             }
         });
-        
+
         editor.addEventListener('keydown', (e) => {
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
 
-            const parentElement = selection.anchorNode.nodeType === 3 
-                ? selection.anchorNode.parentElement 
-                : selection.anchorNode;
+            const parentElement = selection.anchorNode.nodeType === 3 ?
+                selection.anchorNode.parentElement :
+                selection.anchorNode;
 
             // --- ۱. اولویت اول: مدیریت تعامل داخل عناصر پیچیده ---
             // این بخش اول اجرا می‌شود تا از تداخل با منطق عمومی جلوگیری کند.
 
-            // الف) تعامل داخل جدول
+            // الف) تعامل داخل لیست (تورفتگی و بیرون‌رفتگی با کلید Tab)
+            const listItem = parentElement.closest('li');
+            if (listItem && e.key === 'Tab') {
+                e.preventDefault();
+
+                if (e.shiftKey) { // بیرون‌رفتگی با Shift + Tab
+                    const parentUl = listItem.parentElement;
+                    const parentLi = parentUl.parentElement.closest('li');
+                    if (parentLi) { // فقط اگر آیتم تودرتو باشد
+                        parentLi.after(listItem);
+                        if (parentUl.children.length === 0) {
+                            parentUl.remove();
+                        }
+                        moveCursorToEnd(listItem, selection);
+                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                    }
+                } else { // تورفتگی با Tab
+                    const previousLi = listItem.previousElementSibling;
+                    if (previousLi) {
+                        let depth = 0;
+                        let el = listItem;
+                        while ((el = el.closest('ul')?.parentElement?.closest('li'))) {
+                            depth++;
+                        }
+
+                        if (depth < 4) {
+                            let sublist = previousLi.querySelector('ul');
+                            if (!sublist) {
+                                sublist = document.createElement('ul');
+                                previousLi.appendChild(sublist);
+                            }
+                            sublist.appendChild(listItem);
+                            moveCursorToEnd(listItem, selection);
+                            localStorage.setItem('mySmartNote', editor.innerHTML);
+                        }
+                    }
+                }
+                return; // پردازش کلید Tab را متوقف کن
+            }
+
+            // ب) تعامل داخل جدول
             const tableCell = parentElement.closest('th, td');
             if (tableCell) {
                 const currentRow = tableCell.parentElement;
-                
+
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    // اگر در آخرین سطر خالی هستیم، از جدول خارج شو
-                    if (currentRow.parentElement.tagName === 'TBODY' && 
-                        !currentRow.nextElementSibling && 
+                    if (currentRow.parentElement.tagName === 'TBODY' &&
+                        !currentRow.nextElementSibling &&
                         Array.from(currentRow.cells).every(cell => cell.textContent.trim() === '')) {
-                        
                         const table = tableCell.closest('table');
                         const newPara = document.createElement('div');
                         newPara.innerHTML = '<br>';
@@ -98,7 +312,6 @@
                         currentRow.remove();
                         moveCursorToEnd(newPara, selection);
                     } else {
-                        // در غیر این صورت، سطر جدید ایجاد کن
                         const newRow = currentRow.parentElement.insertRow(currentRow.rowIndex);
                         for (let i = 0; i < currentRow.cells.length; i++) {
                             newRow.insertCell(i);
@@ -106,37 +319,36 @@
                         moveCursorToEnd(newRow.cells[0], selection);
                     }
                     localStorage.setItem('mySmartNote', editor.innerHTML);
-                    return; // پردازش را متوقف کن
+                    return;
                 }
 
                 if (e.key === 'Tab') {
                     e.preventDefault();
                     let nextCell;
-                    if (e.shiftKey) { // Shift + Tab برای حرکت به عقب
+                    if (e.shiftKey) {
                         nextCell = tableCell.previousElementSibling || (currentRow.previousElementSibling ? currentRow.previousElementSibling.cells[currentRow.cells.length - 1] : null);
-                    } else { // Tab برای حرکت به جلو
+                    } else {
                         nextCell = tableCell.nextElementSibling || (currentRow.nextElementSibling ? currentRow.nextElementSibling.cells[0] : null);
                     }
-                    
+
                     if (nextCell) {
                         moveCursorToEnd(nextCell, selection);
-                    } else if (!e.shiftKey) { // اگر در آخرین سلول هستیم، سطر جدید بساز
+                    } else if (!e.shiftKey) {
                         const newRow = currentRow.parentElement.insertRow(currentRow.rowIndex + 1);
-                        for (let i = 0; i < currentRow.cells.length; i++) { newRow.insertCell(i); }
+                        for (let i = 0; i < currentRow.cells.length; i++) {
+                            newRow.insertCell(i);
+                        }
                         moveCursorToEnd(newRow.cells[0], selection);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                     }
-                    return; // پردازش را متوقف کن
+                    return;
                 }
             }
 
             // --- ۲. مدیریت کلید Enter برای ایجاد عناصر بلوکی جدید ---
             if (e.key === 'Enter') {
                 const pre = parentElement.closest('pre');
-                
-                // ب) تعامل داخل بلوک کد
                 if (pre) {
-                    // اگر ``` را برای خروج تایپ کردیم
                     if (parentElement.textContent.trim() === '```') {
                         e.preventDefault();
                         const newPara = document.createElement('div');
@@ -146,7 +358,6 @@
                         moveCursorToEnd(newPara, selection);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                     }
-                    // در غیر این صورت، به رفتار پیش‌فرض Enter اجازه بده تا خط جدید بسازد
                     return;
                 }
 
@@ -155,37 +366,30 @@
                 const previousLine = currentLine.previousElementSibling;
                 let match;
 
-                // ج) ایجاد عکس (بررسی خط فعلی) - [اصلاح شده]
                 const imageRegex = /^!\[([^\]]*)\]\(([^)]+)\)$/;
                 if ((match = currentLineText.match(imageRegex))) {
                     e.preventDefault();
                     const altText = match[1];
                     const imageUrl = match[2];
-                    
                     const figure = document.createElement('figure');
                     const img = document.createElement('img');
                     img.src = imageUrl;
                     img.alt = altText;
                     figure.appendChild(img);
-                    
                     if (altText) {
                         const figcaption = document.createElement('figcaption');
                         figcaption.textContent = altText;
                         figure.appendChild(figcaption);
                     }
-
                     const newPara = document.createElement('div');
                     newPara.innerHTML = '<br>';
-
                     currentLine.replaceWith(figure);
                     figure.after(newPara);
                     moveCursorToEnd(newPara, selection);
-                    
                     localStorage.setItem('mySmartNote', editor.innerHTML);
                     return;
                 }
-                
-                // د) ایجاد جدول (بررسی خط فعلی و قبلی)
+
                 const separatorRegex = /^\|(?:\s*:?-+:?\s*\|)+$/;
                 if (previousLine && currentLineText.match(separatorRegex)) {
                     const headers = previousLine.textContent.split('|').slice(1, -1).map(h => h.trim());
@@ -201,7 +405,9 @@
                         });
                         const tbody = table.createTBody();
                         const firstDataRow = tbody.insertRow();
-                        for (let i = 0; i < headers.length; i++) { firstDataRow.insertCell(i); }
+                        for (let i = 0; i < headers.length; i++) {
+                            firstDataRow.insertCell(i);
+                        }
                         previousLine.replaceWith(table);
                         currentLine.remove();
                         moveCursorToEnd(firstDataRow.cells[0], selection);
@@ -210,7 +416,6 @@
                     }
                 }
 
-                // ه) ایجاد بلوک کد (بررسی خط فعلی)
                 if (currentLineText.startsWith('```')) {
                     e.preventDefault();
                     const lang = currentLineText.substring(3);
@@ -225,25 +430,37 @@
                     return;
                 }
 
-                // و) ادامه و خروج از لیست‌ها
-                const listItem = parentElement.closest('li');
-                if (listItem) {
-                    if (listItem.textContent.trim() === '') {
+                // ادامه و خروج از لیست‌ها (با منطق جدید برای تودرتو)
+                const listItemOnEnter = parentElement.closest('li');
+                if (listItemOnEnter) {
+                    if (listItemOnEnter.textContent.trim() === '') {
                         e.preventDefault();
-                        const list = listItem.parentElement;
-                        const newPara = document.createElement('div');
-                        newPara.innerHTML = '<br>';
-                        list.after(newPara);
-                        listItem.remove();
-                        if (list.children.length === 0) { list.remove(); }
-                        moveCursorToEnd(newPara, selection);
+                        const parentUl = listItemOnEnter.parentElement;
+                        const parentLi = parentUl.parentElement.closest('li');
+                        if (parentLi) { // اگر آیتم تودرتو است، یک سطح بیرون بیا
+                            parentLi.after(listItemOnEnter);
+                            if (parentUl.children.length === 0) {
+                                parentUl.remove();
+                            }
+                            moveCursorToEnd(listItemOnEnter, selection);
+                        } else { // اگر در سطح اول است، از لیست خارج شو
+                            const list = listItemOnEnter.parentElement;
+                            const newPara = document.createElement('div');
+                            newPara.innerHTML = '<br>';
+                            list.after(newPara);
+                            listItemOnEnter.remove();
+                            if (list.children.length === 0) {
+                                list.remove();
+                            }
+                            moveCursorToEnd(newPara, selection);
+                        }
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                         return;
                     }
-                    if (listItem.classList.contains('checklist-item')) {
+                    if (listItemOnEnter.classList.contains('checklist-item')) {
                         e.preventDefault();
                         const newLi = createChecklistItem('', false);
-                        listItem.after(newLi);
+                        listItemOnEnter.after(newLi);
                         moveCursorToEnd(newLi, selection);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                         return;
@@ -259,25 +476,18 @@
                 const range = selection.getRangeAt(0);
                 const node = range.startContainer;
 
-                // ۴. اگر داخل بلوک کد هستیم، هیچ فرمتی را اجرا نکن
                 if (node.parentElement.closest('pre')) {
                     return;
                 }
 
-                // ۱. ابتدا منطق "ارتقاء" را بررسی می‌کنیم
                 const parentLi = node.parentElement.closest('li');
                 if (parentLi) {
                     const liText = parentLi.textContent;
                     let match;
-                    // اگر داخل یک آیتم لیست هستیم و الگوی بازبینه تایپ شد
                     if ((match = liText.match(/^\[([ xX]?)\]\s$/))) {
                         const isChecked = match[1].toLowerCase() === 'x';
                         const list = parentLi.parentElement;
-                        
-                        // کل لیست را به بازبینه تبدیل کن
                         list.classList.add('checklist');
-                        
-                        // این آیتم را به آیتم بازبینه تبدیل کن
                         const newChecklistItem = createChecklistItem('', isChecked);
                         parentLi.replaceWith(newChecklistItem);
                         moveCursorToEnd(newChecklistItem, selection);
@@ -290,26 +500,58 @@
                     let match;
                     const parentBlock = node.parentElement;
 
-                    // ۲. سپس منطق ایجاد فرمت‌های بلوکی جدید را اجرا می‌کنیم
                     if (parentBlock && parentBlock.parentElement === editor) {
-                        // منطق ایجاد بازبینه از ابتدا (حذف شد چون با منطق ارتقا تداخل دارد)
-                        // ...
-                        if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) { /* ... منطق عنوان‌ها ... */ const level = match[1].length; const content = match[2]; const newHeading = document.createElement(`h${level}`); newHeading.textContent = content; editor.replaceChild(newHeading, parentBlock); moveCursorToEnd(newHeading, selection); return; }
-                        else if ((match = text.match(/^> ([^\n]*?)\s$/))) { /* ... منطق نقل‌قول ... */ const content = match[1]; const newQuote = document.createElement('blockquote'); if (content === '') { newQuote.appendChild(document.createElement('br')); } else { newQuote.textContent = content; } editor.replaceChild(newQuote, parentBlock); moveCursorToEnd(newQuote, selection); return; }
-                        else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) { /* ... منطق لیست مرتب ... */ const content = match[2]; const ol = document.createElement('ol'); const li = document.createElement('li'); const startNum = parseInt(match[1], 10); if (startNum > 1) { ol.setAttribute('start', startNum); } if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } ol.appendChild(li); editor.replaceChild(ol, parentBlock); moveCursorToEnd(li, selection); return; }
-                        // ۳. منطق ایجاد لیست نامرتب (بدون تغییر)
-                        else if ((match = text.match(/^([*-])\s([^\n]*?)\s$/))) { 
-                            const content = match[2]; 
-                            const ul = document.createElement('ul'); 
-                            const li = document.createElement('li'); 
-                            if (content === '') { li.appendChild(document.createElement('br')); } else { li.textContent = content; } 
-                            ul.appendChild(li); 
-                            editor.replaceChild(ul, parentBlock); 
-                            moveCursorToEnd(li, selection); 
-                            return; 
+                        if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) {
+                            const level = match[1].length;
+                            const content = match[2];
+                            const newHeading = document.createElement(`h${level}`);
+                            newHeading.textContent = content;
+                            editor.replaceChild(newHeading, parentBlock);
+                            moveCursorToEnd(newHeading, selection);
+                            return;
+                        } else if ((match = text.match(/^> ([^\n]*?)\s$/))) {
+                            const content = match[1];
+                            const newQuote = document.createElement('blockquote');
+                            if (content === '') {
+                                newQuote.appendChild(document.createElement('br'));
+                            } else {
+                                newQuote.textContent = content;
+                            }
+                            editor.replaceChild(newQuote, parentBlock);
+                            moveCursorToEnd(newQuote, selection);
+                            return;
+                        } else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) {
+                            const content = match[2];
+                            const ol = document.createElement('ol');
+                            const li = document.createElement('li');
+                            const startNum = parseInt(match[1], 10);
+                            if (startNum > 1) {
+                                ol.setAttribute('start', startNum);
+                            }
+                            if (content === '') {
+                                li.appendChild(document.createElement('br'));
+                            } else {
+                                li.textContent = content;
+                            }
+                            ol.appendChild(li);
+                            editor.replaceChild(ol, parentBlock);
+                            moveCursorToEnd(li, selection);
+                            return;
+                        } else if ((match = text.match(/^([*-])\s([^\n]*?)\s$/))) {
+                            const content = match[2];
+                            const ul = document.createElement('ul');
+                            const li = document.createElement('li');
+                            if (content === '') {
+                                li.appendChild(document.createElement('br'));
+                            } else {
+                                li.textContent = content;
+                            }
+                            ul.appendChild(li);
+                            editor.replaceChild(ul, parentBlock);
+                            moveCursorToEnd(li, selection);
+                            return;
                         }
                     }
-                    // ۵. اضافه شدن منطق کد تک‌خطی
                     if ((match = text.match(/`([^`]+)`\s$/))) {
                         replaceMarkdown(node, match, (m) => {
                             const code = document.createElement('code');
@@ -317,10 +559,33 @@
                             return code;
                         });
                     }
-                    if ((match = text.match(/\[([^\]]+)\]\(([^)]+)\)\s$/))) { /* ... منطق پیوند ... */ replaceMarkdown(node, match, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; }); }
-                    else if ((match = text.match(/\*\*([^\*]+)\*\*\s$/))) { /* ... منطق پررنگ ... */ replaceMarkdown(node, match, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; }); }
-                    else if ((match = text.match(/\*([^\*]+)\*\s$/))) { /* ... منطق کج ... */ replaceMarkdown(node, match, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; }); }
-                    else if ((match = text.match(/~~([^~]+)~~\s$/))) { /* ... منطق خط خورده ... */ replaceMarkdown(node, match, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; }); }
+                    if ((match = text.match(/\[([^\]]+)\]\(([^)]+)\)\s$/))) {
+                        replaceMarkdown(node, match, (m) => {
+                            const a = document.createElement('a');
+                            a.href = m[2];
+                            a.textContent = m[1];
+                            a.target = '_blank';
+                            return a;
+                        });
+                    } else if ((match = text.match(/\*\*([^\*]+)\*\*\s$/))) {
+                        replaceMarkdown(node, match, (m) => {
+                            const strong = document.createElement('strong');
+                            strong.textContent = m[1];
+                            return strong;
+                        });
+                    } else if ((match = text.match(/\*([^\*]+)\*\s$/))) {
+                        replaceMarkdown(node, match, (m) => {
+                            const em = document.createElement('em');
+                            em.textContent = m[1];
+                            return em;
+                        });
+                    } else if ((match = text.match(/~~([^~]+)~~\s$/))) {
+                        replaceMarkdown(node, match, (m) => {
+                            const del = document.createElement('del');
+                            del.textContent = m[1];
+                            return del;
+                        });
+                    }
                 }
             }
         });
@@ -331,40 +596,57 @@
             if (isChecked) {
                 li.classList.add('checked');
             }
-
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = isChecked;
-            checkbox.disabled = true; // برای جلوگیری از تعامل مستقیم
-
+            checkbox.disabled = true;
             li.appendChild(checkbox);
-            
-            // برای اینکه مکان‌نما بعد از چک‌باکس قرار بگیرد
             const textNode = document.createTextNode(content || '');
             li.appendChild(textNode);
             if (content === '') {
                 li.appendChild(document.createElement('br'));
             }
-            
             return li;
         }
-        
+
         function moveCursorToEnd(element, selection) {
             const range = document.createRange();
-            // اگر المان محتوا دارد، به انتهای محتوا برو
             if (element.firstChild) {
                 range.selectNodeContents(element);
-                range.collapse(false); // false = برو به انتها
+                range.collapse(false);
             } else {
-            // اگر المان خالی است، فقط مکان‌نما را داخلش قرار بده
                 range.setStart(element, 0);
                 range.collapse(true);
             }
             selection.removeAllRanges();
             selection.addRange(range);
+            element.focus();
         }
-        function replaceMarkdown(textNode, match, createFn) { if (textNode.parentElement.closest('a, strong, em, del, h1, h2, h3, h4, li, code, pre')) return; const range = document.createRange(); range.setStart(textNode, match.index); range.setEnd(textNode, match.index + match[0].length - 1); range.deleteContents(); const newElement = createFn(match); range.insertNode(newElement); range.setStartAfter(newElement); range.collapse(true); const spaceNode = document.createTextNode('\u00A0'); range.insertNode(spaceNode); range.setStartAfter(spaceNode); const selection = window.getSelection(); selection.removeAllRanges(); selection.addRange(range); localStorage.setItem('mySmartNote', editor.innerHTML); }
-        editor.addEventListener('paste', (e) => { e.preventDefault(); const text = (e.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, text); });
+
+        function replaceMarkdown(textNode, match, createFn) {
+            if (textNode.parentElement.closest('a, strong, em, del, h1, h2, h3, h4, li, code, pre')) return;
+            const range = document.createRange();
+            range.setStart(textNode, match.index);
+            range.setEnd(textNode, match.index + match[0].length - 1);
+            range.deleteContents();
+            const newElement = createFn(match);
+            range.insertNode(newElement);
+            range.setStartAfter(newElement);
+            range.collapse(true);
+            const spaceNode = document.createTextNode('\u00A0');
+            range.insertNode(spaceNode);
+            range.setStartAfter(spaceNode);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            localStorage.setItem('mySmartNote', editor.innerHTML);
+        }
+
+        editor.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+            document.execCommand('insertText', false, text);
+        });
     </script>
 </body>
 </html>
