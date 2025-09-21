@@ -108,6 +108,27 @@
         #editor ul ul ul ul {
             list-style-type: disc;
         }
+        
+        /* استایل‌های جدید برای لیست‌های مرتب تودرتو */
+        #editor ol {
+            list-style-type: none;
+            counter-reset: item;
+        }
+
+        #editor ol > li {
+            display: block;
+            position: relative;
+        }
+
+        #editor ol > li::before {
+            content: counters(item, ".") ". ";
+            counter-increment: item;
+            position: absolute;
+            right: -2.5em;
+            width: 2em;
+            text-align: right;
+        }
+
 
         #editor ul ul,
         #editor ol ol,
@@ -261,12 +282,12 @@
                 e.preventDefault();
 
                 if (e.shiftKey) { // بیرون‌رفتگی با Shift + Tab
-                    const parentUl = listItem.parentElement;
-                    const parentLi = parentUl.parentElement.closest('li');
+                    const parentList = listItem.parentElement;
+                    const parentLi = parentList.parentElement.closest('li');
                     if (parentLi) { // فقط اگر آیتم تودرتو باشد
                         parentLi.after(listItem);
-                        if (parentUl.children.length === 0) {
-                            parentUl.remove();
+                        if (parentList.children.length === 0) {
+                            parentList.remove();
                         }
                         moveCursorToEnd(listItem, selection);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
@@ -276,14 +297,17 @@
                     if (previousLi) {
                         let depth = 0;
                         let el = listItem;
-                        while ((el = el.closest('ul')?.parentElement?.closest('li'))) {
+                        while ((el = el.closest('ul, ol')?.parentElement?.closest('li'))) {
                             depth++;
                         }
+                        
+                        const parentListTag = listItem.parentElement.tagName;
+                        const maxDepth = parentListTag === 'OL' ? 3 : 4;
 
-                        if (depth < 4) {
-                            let sublist = previousLi.querySelector('ul');
+                        if (depth < maxDepth) {
+                            let sublist = previousLi.querySelector('ul, ol');
                             if (!sublist) {
-                                sublist = document.createElement('ul');
+                                sublist = document.createElement(parentListTag);
                                 previousLi.appendChild(sublist);
                             }
                             sublist.appendChild(listItem);
@@ -326,9 +350,9 @@
                     e.preventDefault();
                     let nextCell;
                     if (e.shiftKey) {
-                        nextCell = tableCell.previousElementSibling || (currentRow.previousElementSibling ? currentRow.previousElementSibling.cells[currentRow.cells.length - 1] : null);
+                        nextCell = tableCell.previousElementSibling || (currentRow.previousElementSibling ? (currentRow.previousElementSibling).cells[currentRow.cells.length - 1] : null);
                     } else {
-                        nextCell = tableCell.nextElementSibling || (currentRow.nextElementSibling ? currentRow.nextElementSibling.cells[0] : null);
+                        nextCell = tableCell.nextElementSibling || (currentRow.nextElementSibling ? (currentRow.nextElementSibling).cells[0] : null);
                     }
 
                     if (nextCell) {
@@ -435,12 +459,12 @@
                 if (listItemOnEnter) {
                     if (listItemOnEnter.textContent.trim() === '') {
                         e.preventDefault();
-                        const parentUl = listItemOnEnter.parentElement;
-                        const parentLi = parentUl.parentElement.closest('li');
+                        const parentList = listItemOnEnter.parentElement;
+                        const parentLi = parentList.parentElement.closest('li');
                         if (parentLi) { // اگر آیتم تودرتو است، یک سطح بیرون بیا
                             parentLi.after(listItemOnEnter);
-                            if (parentUl.children.length === 0) {
-                                parentUl.remove();
+                            if (parentList.children.length === 0) {
+                                parentList.remove();
                             }
                             moveCursorToEnd(listItemOnEnter, selection);
                         } else { // اگر در سطح اول است، از لیست خارج شو
