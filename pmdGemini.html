@@ -126,23 +126,11 @@
         }
 
         #editor ol > li::before {
-            /* 1. Generate the number content */
-            /* The \200e (LTR mark) fixes the period placement */
             content: "\200e" counters(item, ".") ".";
-            
-            /* 2. Act as a table cell for the number */
             display: table-cell;
-            
-            /* 3. Prevent the number from wrapping */
             white-space: nowrap;
-            
-            /* 4. Use a small width to make the cell shrink-to-fit its content */
             width: 1%;
-            
-            /* 5. Define the consistent gap *after* the number (left in RTL) */
             padding-left: 0.8em; 
-
-            /* 6. Ensure vertical alignment with the text */
             vertical-align: top;
         }
 
@@ -151,7 +139,7 @@
         #editor ol ol,
         #editor ol ul,
         #editor ul ol {
-            margin-right: 25px;
+            margin-right: -20px;
             margin-top: 0.5em;
             margin-bottom: 0.5em;
         }
