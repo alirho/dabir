@@ -201,6 +201,7 @@
             border-collapse: collapse;
             width: 100%;
             margin: 1.5em 0;
+            table-layout: fixed; /* عرض ستون‌ها ثابت می‌ماند */
         }
 
         #editor th,
@@ -208,6 +209,7 @@
             border: 1px solid #ccc;
             padding: 10px;
             text-align: right;
+            overflow-wrap: break-word; /* متن طولانی شکسته می‌شود */
         }
 
         #editor th {
@@ -452,9 +454,15 @@
                         currentRow.remove();
                         moveCursorToEnd(newPara, selection);
                     } else {
+                        const table = tableCell.closest('table');
+                        const alignments = JSON.parse(table.dataset.alignments || '[]');
                         const newRow = currentRow.parentElement.insertRow(currentRow.rowIndex);
                         for (let i = 0; i < currentRow.cells.length; i++) {
-                            newRow.insertCell(i);
+                            const cell = newRow.insertCell(i);
+                            cell.appendChild(document.createElement('br')); // افزودن BR برای ارتفاع اولیه
+                            if (alignments[i]) {
+                                cell.style.textAlign = alignments[i];
+                            }
                         }
                         moveCursorToEnd(newRow.cells[0], selection);
                     }
@@ -464,22 +472,69 @@
 
                 if (e.key === 'Tab') {
                     e.preventDefault();
-                    let nextCell;
-                    if (e.shiftKey) {
-                        nextCell = tableCell.previousElementSibling || (currentRow.previousElementSibling ? (currentRow.previousElementSibling).cells[currentRow.cells.length - 1] : null);
-                    } else {
-                        nextCell = tableCell.nextElementSibling || (currentRow.nextElementSibling ? (currentRow.nextElementSibling).cells[0] : null);
-                    }
-
-                    if (nextCell) {
-                        moveCursorToEnd(nextCell, selection);
-                    } else if (!e.shiftKey) {
-                        const newRow = currentRow.parentElement.insertRow(currentRow.rowIndex + 1);
-                        for (let i = 0; i < currentRow.cells.length; i++) {
-                            newRow.insertCell(i);
+                    if (e.shiftKey) { // Backwards navigation
+                        let prevCell = tableCell.previousElementSibling;
+                        if (prevCell) {
+                            moveCursorToEnd(prevCell, selection);
+                        } else {
+                            const prevRow = currentRow.previousElementSibling;
+                            if (prevRow) {
+                                moveCursorToEnd(prevRow.cells[prevRow.cells.length - 1], selection);
+                            }
                         }
-                        moveCursorToEnd(newRow.cells[0], selection);
-                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                    } else { // Forwards navigation
+                        let nextCell = tableCell.nextElementSibling;
+                        if (nextCell) {
+                            moveCursorToEnd(nextCell, selection);
+                        } else {
+                            // Last cell in a row: add a new column
+                            const table = tableCell.closest('table');
+                            const alignments = JSON.parse(table.dataset.alignments || '[]');
+                            
+                            // UX Improvement: New column inherits alignment from the previous one.
+                            const lastAlignment = alignments.length > 0 ? alignments[alignments.length - 1] : '';
+                            alignments.push(lastAlignment);
+                            table.dataset.alignments = JSON.stringify(alignments);
+
+                            const newColumnIndex = alignments.length - 1;
+                            const newAlignment = alignments[newColumnIndex];
+                            let newCellToFocus;
+
+                            // Add a new header cell to each header row
+                            if (table.tHead) {
+                                for (const row of table.tHead.rows) {
+                                    const newTh = document.createElement('th');
+                                    newTh.appendChild(document.createElement('br'));
+                                    if (newAlignment) {
+                                        newTh.style.textAlign = newAlignment;
+                                    }
+                                    row.appendChild(newTh);
+                                    if (row === currentRow) {
+                                        newCellToFocus = newTh;
+                                    }
+                                }
+                            }
+
+                            // Add a new data cell to each body row
+                            if (table.tBodies.length > 0) {
+                                for (const row of table.tBodies[0].rows) {
+                                    const newTd = document.createElement('td');
+                                    newTd.appendChild(document.createElement('br'));
+                                    if (newAlignment) {
+                                        newTd.style.textAlign = newAlignment;
+                                    }
+                                    row.appendChild(newTd);
+                                    if (row === currentRow) {
+                                        newCellToFocus = newTd;
+                                    }
+                                }
+                            }
+
+                            if (newCellToFocus) {
+                                moveCursorToEnd(newCellToFocus, selection);
+                            }
+                            localStorage.setItem('mySmartNote', editor.innerHTML);
+                        }
                     }
                     return;
                 }
@@ -561,19 +616,41 @@
                     const headers = previousLine.textContent.split('|').slice(1, -1).map(h => h.trim());
                     if (headers.length > 0) {
                         e.preventDefault();
+
+                        const aligners = currentLineText.split('|').slice(1, -1).map(s => s.trim());
+                        const alignments = aligners.map(aligner => {
+                            const startsWithColon = aligner.startsWith(':');
+                            const endsWithColon = aligner.endsWith(':');
+                            if (startsWithColon && endsWithColon) return 'center';
+                            if (startsWithColon) return 'right';
+                            if (endsWithColon) return 'left';
+                            return '';
+                        });
+
                         const table = document.createElement('table');
+                        table.dataset.alignments = JSON.stringify(alignments);
+
                         const thead = table.createTHead();
                         const headerRow = thead.insertRow();
-                        headers.forEach(headerText => {
+                        headers.forEach((headerText, index) => {
                             const th = document.createElement('th');
                             th.textContent = headerText;
+                            if (alignments[index]) {
+                                th.style.textAlign = alignments[index];
+                            }
                             headerRow.appendChild(th);
                         });
+
                         const tbody = table.createTBody();
                         const firstDataRow = tbody.insertRow();
                         for (let i = 0; i < headers.length; i++) {
-                            firstDataRow.insertCell(i);
+                            const cell = firstDataRow.insertCell(i);
+                            cell.appendChild(document.createElement('br')); // افزودن BR برای ارتفاع اولیه
+                            if (alignments[i]) {
+                                cell.style.textAlign = alignments[i];
+                            }
                         }
+
                         previousLine.replaceWith(table);
                         currentLine.remove();
                         moveCursorToEnd(firstDataRow.cells[0], selection);
@@ -886,12 +963,12 @@
 
         function moveCursorToEnd(element, selection) {
             const range = document.createRange();
-            if (element.firstChild) {
-                range.selectNodeContents(element);
-                range.collapse(false);
-            } else {
+            if (element.firstChild && element.firstChild.nodeName === 'BR' && element.childNodes.length === 1) {
+                // If the only child is a BR, place cursor before it
                 range.setStart(element, 0);
-                range.collapse(true);
+            } else {
+                range.selectNodeContents(element);
+                range.collapse(false); // false means collapse to the end
             }
             selection.removeAllRanges();
             selection.addRange(range);
