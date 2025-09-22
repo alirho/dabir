@@ -374,6 +374,12 @@
 
             // --- ۲. مدیریت کلید Enter برای ایجاد عناصر بلوکی جدید ---
             if (e.key === 'Enter') {
+                const handled = handleEnterKeyMarkdown(e, selection, parentElement);
+                if (handled) {
+                    localStorage.setItem('mySmartNote', editor.innerHTML);
+                    return;
+                }
+
                 const pre = parentElement.closest('pre');
                 if (pre) {
                     if (parentElement.textContent.trim() === '```') {
@@ -638,6 +644,114 @@
                 }
             }
         });
+
+        function handleEnterKeyMarkdown(e, selection, parentElement) {
+            // Only apply to simple blocks at the root of the editor
+            if (parentElement.parentElement !== editor) {
+                return false;
+            }
+            
+            const text = parentElement.textContent;
+            let match;
+
+            // Block-level conversions
+            if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
+                e.preventDefault();
+                const level = match[1].length;
+                const content = match[2];
+                const newHeading = document.createElement(`h${level}`);
+                newHeading.textContent = content;
+                parentElement.replaceWith(newHeading);
+                
+                const newPara = document.createElement('div');
+                newPara.innerHTML = '<br>';
+                newHeading.after(newPara);
+                moveCursorToEnd(newPara, selection);
+                return true;
+            }
+            
+            if ((match = text.match(/^> ([^\n]*?)$/))) {
+                e.preventDefault();
+                const content = match[1];
+                const newQuote = document.createElement('blockquote');
+                const line = document.createElement('div');
+                if (content === '') {
+                    line.appendChild(document.createElement('br'));
+                } else {
+                    line.textContent = content;
+                }
+                newQuote.appendChild(line);
+                parentElement.replaceWith(newQuote);
+                
+                const newPara = document.createElement('div');
+                newPara.innerHTML = '<br>';
+                newQuote.after(newPara);
+                moveCursorToEnd(newPara, selection);
+                return true;
+            }
+
+            if ((match = text.match(/^(\d+)\.\s([^\n]*?)$/))) {
+                e.preventDefault();
+                const content = match[2];
+                const ol = document.createElement('ol');
+                const li = document.createElement('li');
+                const startNum = parseInt(match[1], 10);
+                if (startNum > 1) {
+                    ol.setAttribute('start', startNum);
+                }
+                li.textContent = content || '';
+                ol.appendChild(li);
+                parentElement.replaceWith(ol);
+                moveCursorToEnd(li, selection);
+                return true;
+            }
+
+            if ((match = text.match(/^([*-])\s([^\n]*?)$/))) {
+                e.preventDefault();
+                const content = match[2];
+                const ul = document.createElement('ul');
+                const li = document.createElement('li');
+                li.textContent = content || '';
+                ul.appendChild(li);
+                parentElement.replaceWith(ul);
+                moveCursorToEnd(li, selection);
+                return true;
+            }
+
+            // Inline-level conversions
+            const textNode = parentElement.lastChild;
+            if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                const nodeText = textNode.textContent;
+
+                const replaceAndBreak = (regex, createFn) => {
+                    const match = nodeText.match(regex);
+                    if (match) {
+                        e.preventDefault();
+                        const range = document.createRange();
+                        range.setStart(textNode, match.index);
+                        range.setEnd(textNode, match.index + match[0].length);
+                        range.deleteContents();
+                        const newElement = createFn(match);
+                        range.insertNode(newElement);
+
+                        const newPara = document.createElement('div');
+                        newPara.innerHTML = '<br>';
+                        parentElement.after(newPara);
+                        moveCursorToEnd(newPara, selection);
+                        return true;
+                    }
+                    return false;
+                };
+
+                if (replaceAndBreak(/`([^`]+)`$/, (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; })) return true;
+                if (replaceAndBreak(/\[([^\]]+)\]\(([^)]+)\)$/, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; })) return true;
+                if (replaceAndBreak(/\*\*([^\*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) return true;
+                if (replaceAndBreak(/\*([^\*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) return true;
+                if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; })) return true;
+            }
+
+            return false;
+        }
 
         function createChecklistItem(content, isChecked) {
             const li = document.createElement('li');
