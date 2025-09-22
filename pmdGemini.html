@@ -147,12 +147,11 @@
         #editor li.checklist-item {
             display: flex;
             align-items: center;
-            cursor: pointer;
         }
 
         #editor li.checklist-item input[type="checkbox"] {
             margin-left: 0.75em;
-            pointer-events: none;
+            cursor: pointer;
         }
 
         #editor li.checklist-item.checked {
@@ -250,17 +249,21 @@
         });
         editor.addEventListener('click', (e) => {
             const link = e.target.closest('a');
-            const checklistItem = e.target.closest('li.checklist-item');
             if (link) {
                 e.preventDefault();
                 window.open(link.href, '_blank');
-            } else if (checklistItem) {
-                e.preventDefault();
-                const checkbox = checklistItem.querySelector('input[type="checkbox"]');
-                if (checkbox) {
-                    checkbox.checked = !checkbox.checked;
-                    checklistItem.classList.toggle('checked', checkbox.checked);
-                    localStorage.setItem('mySmartNote', editor.innerHTML);
+                return;
+            }
+            
+            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
+                const checklistItem = e.target.closest('li.checklist-item');
+                if (checklistItem) {
+                    // Use a timeout to allow the browser's default checkbox toggle to complete
+                    // before we sync the class and save the state.
+                    setTimeout(() => {
+                        checklistItem.classList.toggle('checked', e.target.checked);
+                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                    }, 0);
                 }
             }
         });
@@ -383,6 +386,26 @@
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                     }
                     return;
+                }
+
+                const blockquote = parentElement.closest('blockquote');
+                if (blockquote) {
+                    // Exit blockquote on double enter
+                    if (parentElement !== blockquote && parentElement.textContent.trim() === '') {
+                        e.preventDefault();
+                        const newPara = document.createElement('div');
+                        newPara.innerHTML = '<br>';
+                        blockquote.after(newPara);
+                        parentElement.remove(); // Remove the empty line from the quote
+
+                        // If the blockquote is now empty, remove it too.
+                        if (!blockquote.hasChildNodes() || blockquote.textContent.trim() === '') {
+                            blockquote.remove();
+                        }
+                        moveCursorToEnd(newPara, selection);
+                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                        return;
+                    }
                 }
 
                 const currentLine = parentElement;
@@ -536,13 +559,15 @@
                         } else if ((match = text.match(/^> ([^\n]*?)\s$/))) {
                             const content = match[1];
                             const newQuote = document.createElement('blockquote');
+                            const line = document.createElement('div');
                             if (content === '') {
-                                newQuote.appendChild(document.createElement('br'));
+                                line.appendChild(document.createElement('br'));
                             } else {
-                                newQuote.textContent = content;
+                                line.textContent = content;
                             }
+                            newQuote.appendChild(line);
                             editor.replaceChild(newQuote, parentBlock);
-                            moveCursorToEnd(newQuote, selection);
+                            moveCursorToEnd(line, selection);
                             return;
                         } else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) {
                             const content = match[2];
@@ -623,7 +648,6 @@
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = isChecked;
-            checkbox.disabled = true;
             li.appendChild(checkbox);
             const textNode = document.createTextNode(content || '');
             li.appendChild(textNode);
