@@ -85,9 +85,12 @@
             text-decoration: underline;
         }
 
-        #editor ol,
         #editor ul {
             padding-right: 2em;
+        }
+
+        #editor ol,
+        #editor ul {
             margin: 1em 0;
         }
 
@@ -109,24 +112,38 @@
             list-style-type: disc;
         }
         
-        /* استایل‌های جدید برای لیست‌های مرتب تودرتو */
+        /* بازنویسی کامل استایل لیست‌های مرتب برای فاصله‌گذاری یکسان */
         #editor ol {
             list-style-type: none;
             counter-reset: item;
+            padding-right: 0;
         }
 
         #editor ol > li {
-            display: block;
-            position: relative;
+            display: table;
+            counter-increment: item;
+            padding-right: 0; /* Let the ::before handle all spacing */
         }
 
         #editor ol > li::before {
-            content: counters(item, ".") ". ";
-            counter-increment: item;
-            position: absolute;
-            right: -2.5em;
-            width: 2em;
-            text-align: right;
+            /* 1. Generate the number content */
+            /* The \200e (LTR mark) fixes the period placement */
+            content: "\200e" counters(item, ".") ".";
+            
+            /* 2. Act as a table cell for the number */
+            display: table-cell;
+            
+            /* 3. Prevent the number from wrapping */
+            white-space: nowrap;
+            
+            /* 4. Use a small width to make the cell shrink-to-fit its content */
+            width: 1%;
+            
+            /* 5. Define the consistent gap *after* the number (left in RTL) */
+            padding-left: 0.8em; 
+
+            /* 6. Ensure vertical alignment with the text */
+            vertical-align: top;
         }
 
 
