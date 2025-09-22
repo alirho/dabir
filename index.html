@@ -384,6 +384,62 @@
             if (tableCell) {
                 const currentRow = tableCell.parentElement;
 
+                if (e.key === 'Backspace' &&
+                    selection.isCollapsed &&
+                    range.startOffset === 0 &&
+                    tableCell === currentRow.cells[0]) {
+
+                    const isRowEmpty = Array.from(currentRow.cells).every(cell => cell.textContent.trim() === '');
+
+                    if (isRowEmpty) {
+                        e.preventDefault();
+                        
+                        const table = tableCell.closest('table');
+                        const isHeaderRow = currentRow.parentElement.tagName === 'THEAD';
+
+                        // Get potential next focus targets before deleting
+                        const previousRow = currentRow.previousElementSibling;
+                        const nextRow = currentRow.nextElementSibling;
+                        const firstBodyRow = table.tBodies[0]?.rows[0];
+                        const lastHeaderRow = table.tHead?.rows[table.tHead.rows.length - 1];
+
+                        // Perform the deletion
+                        const parentContainer = currentRow.parentElement; // THEAD or TBODY
+                        currentRow.remove();
+                        if (parentContainer.rows.length === 0) {
+                            parentContainer.remove();
+                        }
+
+                        // Check if table is now totally empty
+                        if (table.rows.length === 0) {
+                            const newPara = document.createElement('div');
+                            newPara.innerHTML = '<br>';
+                            table.after(newPara);
+                            table.remove();
+                            moveCursorToEnd(newPara, selection);
+                        } else if (isHeaderRow) {
+                            // Header was deleted, move to the first body row if it exists
+                            if (firstBodyRow) {
+                                moveCursorToEnd(firstBodyRow.cells[0], selection);
+                            }
+                        } else { // A body row was deleted
+                            if (previousRow) {
+                                // Move to the previous sibling
+                                moveCursorToEnd(previousRow.cells[previousRow.cells.length - 1], selection);
+                            } else if (nextRow) {
+                                // Move to the next sibling
+                                moveCursorToEnd(nextRow.cells[0], selection);
+                            } else if (lastHeaderRow) {
+                                // It was the only body row, move to header
+                                moveCursorToEnd(lastHeaderRow.cells[lastHeaderRow.cells.length - 1], selection);
+                            }
+                        }
+                        
+                        localStorage.setItem('mySmartNote', editor.innerHTML);
+                        return;
+                    }
+                }
+
                 if (e.key === 'Enter') {
                     e.preventDefault();
                     if (currentRow.parentElement.tagName === 'TBODY' &&
