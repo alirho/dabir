@@ -933,11 +933,17 @@
                     return false;
                 };
 
-                if (replaceAndBreak(/`([^`]+)`$/, (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; })) return true;
-                if (replaceAndBreak(/\[([^\]]+)\]\(([^)]+)\)$/, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; })) return true;
-                if (replaceAndBreak(/\*\*([^\*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) return true;
-                if (replaceAndBreak(/\*([^\*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) return true;
-                if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; })) return true;
+                if (replaceAndBreak(/`([^`]+)`$/, (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; })) {
+                    return true;
+                } else if (replaceAndBreak(/\[([^\]]+)\]\(([^)]+)\)$/, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; })) {
+                    return true;
+                } else if (replaceAndBreak(/\*\*([^\*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) {
+                    return true;
+                } else if (replaceAndBreak(/\*([^\*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) {
+                    return true;
+                } else if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; })) {
+                    return true;
+                }
             }
 
             return false;
