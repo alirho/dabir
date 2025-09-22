@@ -148,10 +148,18 @@
             list-style-type: none;
             padding-right: 0;
         }
-
+        
         #editor li.checklist-item {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
+        }
+
+        /* Force nested checklist to wrap to new line and indent */
+        #editor li.checklist-item > ul.checklist {
+            flex-basis: 100%;
+            width: 100%;
+            padding-right: 2.5em;
         }
 
         #editor li.checklist-item input[type="checkbox"] {
@@ -317,6 +325,9 @@
                             let sublist = previousLi.querySelector('ul, ol');
                             if (!sublist) {
                                 sublist = document.createElement(parentListTag);
+                                if (listItem.classList.contains('checklist-item')) {
+                                    sublist.classList.add('checklist');
+                                }
                                 previousLi.appendChild(sublist);
                             }
                             sublist.appendChild(listItem);
@@ -347,14 +358,19 @@
                         const newPara = document.createElement('div');
                         newPara.innerHTML = '<br>';
                         
-                        parentList.before(newPara);
-                        checklistItem.remove();
-                        
-                        if (parentList.children.length === 0) {
-                            parentList.remove();
+                        // اگر لیست والد، خود تودرتو است، باید از آن خارج شویم
+                        const parentLi = parentList.parentElement.closest('li');
+                        if(parentLi) {
+                            parentList.remove(); // لیست خالی را حذف کن
+                            moveCursorToEnd(parentLi, selection);
+                        } else {
+                            parentList.before(newPara);
+                             if (parentList.children.length === 1) { // 1 because we haven't removed the item yet
+                                parentList.remove();
+                            }
+                            checklistItem.remove();
+                            moveCursorToEnd(newPara, selection);
                         }
-
-                        moveCursorToEnd(newPara, selection);
                     }
                     
                     localStorage.setItem('mySmartNote', editor.innerHTML);
