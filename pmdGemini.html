@@ -277,6 +277,7 @@
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
 
+            const range = selection.getRangeAt(0);
             const parentElement = selection.anchorNode.nodeType === 3 ?
                 selection.anchorNode.parentElement :
                 selection.anchorNode;
@@ -326,8 +327,43 @@
                 }
                 return; // پردازش کلید Tab را متوقف کن
             }
+            
+            // ب) حذف آیتم خالی چک‌لیست با Backspace
+            const checklistItem = parentElement.closest('li.checklist-item');
+            if (e.key === 'Backspace' && selection.isCollapsed && checklistItem && checklistItem.textContent.trim() === '') {
+                // اطمینان از اینکه مکان‌نما در ابتدای آیتم قرار دارد
+                if ((range.startContainer === checklistItem && range.startOffset <= 1) || (range.startContainer.parentElement === checklistItem && range.startOffset === 0)) {
+                    e.preventDefault();
+                    
+                    const parentList = checklistItem.parentElement;
+                    const previousItem = checklistItem.previousElementSibling;
 
-            // ب) تعامل داخل جدول
+                    if (previousItem) {
+                        // آیتم قبلی وجود دارد، مکان‌نما به آنجا می‌رود
+                        checklistItem.remove();
+                        moveCursorToEnd(previousItem, selection);
+                    } else {
+                        // این اولین آیتم در لیست است
+                        const newPara = document.createElement('div');
+                        newPara.innerHTML = '<br>';
+                        
+                        parentList.before(newPara);
+                        checklistItem.remove();
+                        
+                        if (parentList.children.length === 0) {
+                            parentList.remove();
+                        }
+
+                        moveCursorToEnd(newPara, selection);
+                    }
+                    
+                    localStorage.setItem('mySmartNote', editor.innerHTML);
+                    return;
+                }
+            }
+
+
+            // ج) تعامل داخل جدول
             const tableCell = parentElement.closest('th, td');
             if (tableCell) {
                 const currentRow = tableCell.parentElement;
