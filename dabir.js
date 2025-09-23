@@ -766,7 +766,19 @@ class DabirEditor {
                 const checklistItem = target.closest('li.checklist-item');
                 if (checklistItem) {
                     setTimeout(() => {
-                        checklistItem.classList.toggle('checked', target.checked);
+                        const isChecked = target.checked;
+                        checklistItem.classList.toggle('checked', isChecked);
+
+                        // Propagate the checked state to all child checklist items
+                        const childItems = checklistItem.querySelectorAll('li.checklist-item');
+                        childItems.forEach(item => {
+                            item.classList.toggle('checked', isChecked);
+                            const childCheckbox = item.querySelector('input[type="checkbox"]');
+                            if (childCheckbox) {
+                                childCheckbox.checked = isChecked;
+                            }
+                        });
+
                         this._saveContent();
                     }, 0);
                 }
@@ -1022,6 +1034,55 @@ class DabirEditor {
 
                 const pre = parentElement.closest('pre');
                 if (pre) {
+                    // Handle exiting the code block on a double enter.
+                    if (selection.isCollapsed) {
+                        const range = selection.getRangeAt(0);
+                        const testRange = range.cloneRange();
+                        testRange.selectNodeContents(pre);
+                        testRange.setStart(range.endContainer, range.endOffset);
+                        const isAtEnd = testRange.toString().trim() === '';
+
+                        // Use innerText to correctly read newlines from <br> tags or text nodes.
+                        const text = pre.innerText;
+
+                        // Condition: cursor is at the end of the block, and the block ends with a newline
+                        // (i.e., the cursor is on a new, empty line).
+                        if (isAtEnd && text.endsWith('\n')) {
+                            e.preventDefault();
+
+                            const code = pre.querySelector('code');
+                            if (code) {
+                                // Robustly remove the last newline from the DOM before exiting.
+                                // The newline could be a <br> element or a \n character in a text node.
+                                const lastChild = code.lastChild;
+                                if (lastChild) {
+                                    if (lastChild.nodeName === 'BR') {
+                                        lastChild.remove();
+                                    } else if (lastChild.nodeType === Node.TEXT_NODE && lastChild.textContent.endsWith('\n')) {
+                                        lastChild.textContent = lastChild.textContent.slice(0, -1);
+                                        if (lastChild.textContent.length === 0) {
+                                            lastChild.remove();
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            const newPara = document.createElement('div');
+                            newPara.innerHTML = '<br>';
+                            pre.after(newPara);
+                            
+                            // If the code block is now empty, remove it entirely.
+                            if (pre.textContent.trim() === '') {
+                                pre.remove();
+                            }
+
+                            this._moveCursorToEnd(newPara, selection);
+                            this._saveContent();
+                            return; // We've handled the event.
+                        }
+                    }
+                    
+                    // Handle exiting by typing ```
                     if (parentElement.textContent.trim() === '```') {
                         e.preventDefault();
                         const newPara = document.createElement('div');
@@ -1031,6 +1092,9 @@ class DabirEditor {
                         this._moveCursorToEnd(newPara, selection);
                         this._saveContent();
                     }
+                    
+                    // Allow normal Enter behavior (adding a newline) for all other cases inside <pre>.
+                    // This return prevents other markdown rules from firing on Enter inside a code block.
                     return;
                 }
 
