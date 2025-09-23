@@ -1,0 +1,243 @@
+
+.dabir-editor {
+    background-color: white;
+    max-width: 800px;
+    min-height: 90vh;
+    margin: 0 auto;
+    padding: 50px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    outline: none;
+    font-size: 18px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+.dabir-editor h1,
+.dabir-editor h2,
+.dabir-editor h3,
+.dabir-editor h4 {
+    margin: 1.5em 0 0.5em;
+    line-height: 1.3;
+    font-weight: 700;
+}
+
+.dabir-editor h1 {
+    font-size: 2em;
+}
+
+.dabir-editor h2 {
+    font-size: 1.75em;
+}
+
+.dabir-editor h3 {
+    font-size: 1.5em;
+}
+
+.dabir-editor h4 {
+    font-size: 1.25em;
+}
+
+.dabir-editor blockquote {
+    border-right: 4px solid #e0e0e0;
+    padding-right: 1.5em;
+    margin: 1em 0;
+    color: #555;
+    background-color: #f9f9f9;
+}
+
+.dabir-editor blockquote[dir="ltr"] {
+    border-right: none;
+    border-left: 4px solid #e0e0e0;
+    padding-right: 0;
+    padding-left: 1.5em;
+}
+
+.dabir-editor strong {
+    font-weight: 700;
+}
+
+.dabir-editor em {
+    font-style: italic;
+}
+
+.dabir-editor del {
+    text-decoration: line-through;
+    color: #888;
+}
+
+.dabir-editor a {
+    color: #007bff;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.dabir-editor a:hover {
+    text-decoration: underline;
+}
+
+.dabir-editor ul {
+    padding-right: 2em;
+}
+
+.dabir-editor ol,
+.dabir-editor ul {
+    margin: 1em 0;
+}
+
+.dabir-editor li {
+    padding-right: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.dabir-editor ul ul {
+    list-style-type: circle;
+}
+
+.dabir-editor ul ul ul {
+    list-style-type: square;
+}
+
+.dabir-editor ul ul ul ul {
+    list-style-type: disc;
+}
+
+.dabir-editor ol {
+    list-style-type: none;
+    counter-reset: item;
+    padding-right: 0;
+}
+
+.dabir-editor ol > li {
+    display: table;
+    counter-increment: item;
+    padding-right: 0; /* Let the ::before handle all spacing */
+}
+
+.dabir-editor ol > li::before {
+    content: "\200e" counters(item, ".") ".";
+    display: table-cell;
+    white-space: nowrap;
+    width: 1%;
+    padding-left: 0.8em; 
+    vertical-align: top;
+}
+
+.dabir-editor ul ul,
+.dabir-editor ol ol,
+.dabir-editor ol ul,
+.dabir-editor ul ol {
+    margin-right: -20px;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+.dabir-editor ul.checklist {
+    list-style-type: none;
+    padding-right: 0;
+}
+
+.dabir-editor li.checklist-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.dabir-editor li.checklist-item > ul.checklist {
+    flex-basis: 100%;
+    width: 100%;
+    padding-right: 2.5em;
+}
+
+.dabir-editor li.checklist-item input[type="checkbox"] {
+    margin-left: 0.75em;
+    cursor: pointer;
+}
+
+.dabir-editor li.checklist-item.checked {
+    text-decoration: line-through;
+    color: #888;
+}
+
+.dabir-editor code {
+    font-family: 'Source Code Pro', monospace;
+    background-color: #f0f0f0;
+    padding: 0.1em 0.4em;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.dabir-editor pre {
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    text-align: left;
+    direction: ltr;
+}
+
+.dabir-editor pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: 1em;
+    white-space: inherit;
+}
+
+.dabir-editor table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5em 0;
+    table-layout: fixed;
+}
+
+.dabir-editor th,
+.dabir-editor td {
+    border: 1px solid #ccc;
+    padding: 10px;
+    text-align: right;
+    overflow-wrap: break-word;
+}
+
+.dabir-editor th {
+    background-color: #f7f7f7;
+    font-weight: 700;
+}
+
+.dabir-editor tr:nth-child(even) {
+    background-color: #fcfcfc;
+}
+
+.dabir-editor:empty:before {
+    content: attr(data-placeholder);
+    color: #999;
+    pointer-events: none;
+}
+
+.dabir-editor figure {
+    margin: 1.5em 0;
+    text-align: center;
+}
+
+.dabir-editor figure img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.dabir-editor figure figcaption {
+    margin-top: 0.8em;
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+}
+
+.dabir-editor [dir="ltr"] {
+    text-align: left;
+}
+
+.dabir-editor [dir="rtl"] {
+    text-align: right;
+}
