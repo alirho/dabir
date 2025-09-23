@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="dabir.svg" type="image/svg+xml">
     <title>دبیر</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
@@ -60,6 +61,13 @@
             margin: 1em 0;
             color: #555;
             background-color: #f9f9f9;
+        }
+        
+        #editor blockquote[dir="ltr"] {
+            border-right: none;
+            border-left: 4px solid #e0e0e0;
+            padding-right: 0;
+            padding-left: 1.5em;
         }
 
         #editor strong {
@@ -187,6 +195,8 @@
             border-radius: 8px;
             overflow-x: auto;
             white-space: pre-wrap;
+            text-align: left;
+            direction: ltr;
         }
 
         #editor pre code {
@@ -246,6 +256,15 @@
             color: #666;
             font-style: italic;
         }
+        
+        /* استایل‌های جدید برای جهت‌دهی خودکار متن */
+        #editor [dir="ltr"] {
+            text-align: left;
+        }
+        
+        #editor [dir="rtl"] {
+            text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -256,16 +275,44 @@
         let activeRawNode = null;
         let ignoreSelectionChange = false;
 
+        function detectAndSetDirection(element) {
+            const text = element.textContent;
+            
+            // Find the first character that is a letter (either LTR or RTL).
+            const firstLetterMatch = text.match(/[a-zA-Z\u0600-\u06FF]/);
+
+            if (firstLetterMatch) {
+                // Check if the first found letter is an RTL character (e.g., Arabic, Persian).
+                if (/[\u0600-\u06FF]/.test(firstLetterMatch[0])) {
+                    element.dir = 'rtl';
+                } else {
+                    element.dir = 'ltr';
+                }
+            } else {
+                // If no letters are found (e.g., empty line, or only numbers/symbols),
+                // default to RTL as per requirements.
+                element.dir = 'rtl';
+            }
+        }
+
+        function updateAllDirections() {
+            // This selector covers paragraphs (div), headings, list items, blockquotes, and table cells.
+            const lineElements = editor.querySelectorAll('div, h1, h2, h3, h4, li, th, td, blockquote, figcaption');
+            lineElements.forEach(detectAndSetDirection);
+        }
+
         window.addEventListener('load', () => {
             const savedContent = localStorage.getItem('mySmartNote');
             if (savedContent) {
                 editor.innerHTML = savedContent;
             }
+            updateAllDirections();
         });
         editor.addEventListener('input', () => {
             if (!activeRawNode) {
                 localStorage.setItem('mySmartNote', editor.innerHTML);
             }
+            updateAllDirections();
         });
 
         function elementToRawMarkdown(el) {
