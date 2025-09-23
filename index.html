@@ -266,6 +266,15 @@
             text-align: right;
         }
     </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/"
+  }
+}
+</script>
 </head>
 <body>
     <div id="editor" contenteditable="true" data-placeholder="اینجا بنویسید..."></div>
@@ -1217,10 +1226,220 @@
             localStorage.setItem('mySmartNote', editor.innerHTML);
         }
 
+        function processTableBlock(lines, startIndex, parseInline) {
+            const headerLine = lines[startIndex];
+            if (!headerLine.includes('|')) return null;
+
+            const separatorLine = lines[startIndex + 1];
+            if (!separatorLine || !separatorLine.match(/^\|(?:\s*:?-+:?\s*\|)+$/)) return null;
+            
+            const headers = headerLine.split('|').slice(1, -1).map(h => h.trim());
+            if (headers.length === 0) return null;
+
+            const aligners = separatorLine.split('|').slice(1, -1).map(s => s.trim());
+            const alignments = aligners.map(aligner => {
+                const startsWithColon = aligner.startsWith(':');
+                const endsWithColon = aligner.endsWith(':');
+                if (startsWithColon && endsWithColon) return 'center';
+                if (endsWithColon) return 'left';
+                if (startsWithColon) return 'right';
+                return '';
+            });
+
+            let html = `<table data-alignments='${JSON.stringify(alignments)}'>`;
+            html += '<thead><tr>';
+            headers.forEach((headerText, index) => {
+                const alignStyle = alignments[index] ? ` style="text-align: ${alignments[index]}"` : '';
+                html += `<th${alignStyle}>${parseInline(headerText)}</th>`;
+            });
+            html += '</tr></thead>';
+
+            html += '<tbody>';
+            let i = startIndex + 2;
+            while(i < lines.length && lines[i].includes('|')) {
+                const cells = lines[i].split('|').slice(1, -1);
+                html += '<tr>';
+                for (let j = 0; j < headers.length; j++) {
+                    const cellText = (cells[j] || '').trim();
+                    const alignStyle = alignments[j] ? ` style="text-align: ${alignments[j]}"` : '';
+                    html += `<td${alignStyle}>${parseInline(cellText) || '<br>'}</td>`;
+                }
+                html += '</tr>';
+                i++;
+            }
+            html += '</tbody></table>';
+
+            return { html, lastIndex: i - 1 };
+        }
+
+        function processListBlock(lines, startIndex, parseInline) {
+            let html = '';
+            let i = startIndex;
+            const listStack = []; // { type: 'ul'/'ol', indent: number }
+
+            const getIndent = (line) => line.match(/^\s*/)[0].length;
+            
+            while(i < lines.length) {
+                const line = lines[i];
+                const trimmedLine = line.trim();
+                const match = trimmedLine.match(/^([-*]|\d+\.) (.*)/);
+
+                if (!match) break;
+                
+                const indent = getIndent(line);
+                
+                while (listStack.length > 0 && indent < listStack[listStack.length - 1].indent) {
+                    html += `</${listStack.pop().type}>`;
+                }
+                
+                const listMarker = match[1];
+                let itemContent = match[2];
+                const type = (listMarker === '-' || listMarker === '*') ? 'ul' : 'ol';
+                
+                const isChecklist = itemContent.startsWith('[ ] ') || itemContent.startsWith('[x] ') || itemContent.startsWith('[X] ');
+
+                if (listStack.length === 0 || indent > listStack[listStack.length - 1].indent) {
+                    html += `<${type}${isChecklist && type === 'ul' ? ' class="checklist"' : ''}>`;
+                    listStack.push({ type, indent });
+                } else if (type !== listStack[listStack.length - 1].type) {
+                    html += `</${listStack.pop().type}>`;
+                    html += `<${type}${isChecklist && type === 'ul' ? ' class="checklist"' : ''}>`;
+                    listStack.push({ type, indent });
+                }
+                
+                if (isChecklist) {
+                    const isChecked = itemContent[1].toLowerCase() === 'x';
+                    itemContent = itemContent.substring(4);
+                    html += `<li class="checklist-item ${isChecked ? 'checked' : ''}"><input type="checkbox" ${isChecked ? 'checked' : ''}>${parseInline(itemContent)}</li>`;
+                } else {
+                    html += `<li>${parseInline(itemContent)}</li>`;
+                }
+                
+                i++;
+            }
+
+            while(listStack.length > 0) {
+                html += `</${listStack.pop().type}>`;
+            }
+            
+            return { html, lastIndex: i - 1 };
+        }
+
+        function markdownToHtml(markdown) {
+            const lines = markdown.split('\n');
+            let html = '';
+            let inCodeBlock = false;
+            let codeLang = '';
+            let currentParagraphLines = [];
+
+            const parseInline = (text) => {
+                return text
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // Escape HTML
+                    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                    .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+                    .replace(/`([^`]+)`/g, '<code>$1</code>');
+            };
+
+            const flushParagraph = () => {
+                if (currentParagraphLines.length > 0) {
+                    html += currentParagraphLines.map(p_line => `<div>${parseInline(p_line)}</div>`).join('');
+                    currentParagraphLines = [];
+                }
+            };
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+
+                if (inCodeBlock) {
+                    if (line.trim() === '```') {
+                        html += '</code></pre>';
+                        inCodeBlock = false;
+                    } else {
+                        html += line.replace(/</g, "&lt;").replace(/>/g, "&gt;") + '\n';
+                    }
+                    continue;
+                }
+
+                if (line.trim().startsWith('```')) {
+                    flushParagraph();
+                    inCodeBlock = true;
+                    codeLang = line.trim().substring(3);
+                    html += `<pre><code class="language-${codeLang}">`;
+                    continue;
+                }
+                
+                let match = line.match(/^(#{1,4}) (.*)/);
+                if (match) {
+                    flushParagraph();
+                    const level = match[1].length;
+                    const content = parseInline(match[2]);
+                    html += `<h${level}>${content}</h${level}>`;
+                    continue;
+                }
+
+                if (line.startsWith('> ')) {
+                    flushParagraph();
+                    html += '<blockquote>';
+                    while (i < lines.length && lines[i].startsWith('> ')) {
+                        const content = parseInline(lines[i].substring(2));
+                        html += `<div>${content || '<br>'}</div>`;
+                        i++;
+                    }
+                    html += '</blockquote>';
+                    i--;
+                    continue;
+                }
+                
+                if (/^(\s*[-*]|\s*\d+\.) /.test(line)) {
+                    flushParagraph();
+                    const listResult = processListBlock(lines, i, parseInline);
+                    html += listResult.html;
+                    i = listResult.lastIndex;
+                    continue;
+                }
+                
+                if (line.includes('|') && i + 1 < lines.length && lines[i+1].includes('|')) {
+                    const tableResult = processTableBlock(lines, i, parseInline);
+                    if (tableResult) {
+                        flushParagraph();
+                        html += tableResult.html;
+                        i = tableResult.lastIndex;
+                        continue;
+                    }
+                }
+                
+                match = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+                if (match) {
+                    flushParagraph();
+                    const alt = match[1];
+                    const src = match[2];
+                    html += `<figure><img src="${src}" alt="${alt}"><figcaption>${alt}</figcaption></figure>`;
+                    continue;
+                }
+
+                if (line.trim() === '') {
+                    flushParagraph();
+                    html += '<div><br></div>';
+                } else {
+                    currentParagraphLines.push(line);
+                }
+            }
+            
+            flushParagraph();
+            return html;
+        }
+
         editor.addEventListener('paste', (e) => {
             e.preventDefault();
             const text = (e.clipboardData || window.clipboardData).getData('text/plain');
-            document.execCommand('insertText', false, text);
+            const html = markdownToHtml(text);
+            if (html) {
+                document.execCommand('insertHTML', false, html);
+                updateAllDirections();
+                localStorage.setItem('mySmartNote', editor.innerHTML);
+            }
         });
 
         function getMarkdownFromSelection() {
