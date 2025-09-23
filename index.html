@@ -253,6 +253,9 @@
 
     <script>
         const editor = document.getElementById('editor');
+        let activeRawNode = null;
+        let ignoreSelectionChange = false;
+
         window.addEventListener('load', () => {
             const savedContent = localStorage.getItem('mySmartNote');
             if (savedContent) {
@@ -260,23 +263,165 @@
             }
         });
         editor.addEventListener('input', () => {
-            localStorage.setItem('mySmartNote', editor.innerHTML);
+            if (!activeRawNode) {
+                localStorage.setItem('mySmartNote', editor.innerHTML);
+            }
         });
+
+        function elementToRawMarkdown(el) {
+            const text = el.textContent;
+            switch (el.tagName) {
+                case 'STRONG': return `**${text}**`;
+                case 'EM':     return `*${text}*`;
+                case 'DEL':    return `~~${text}~~`;
+                case 'CODE':   return `\`${text}\``;
+                case 'A':      return `[${text}](${el.getAttribute('href')})`;
+                case 'H1':     return `# ${text}`;
+                case 'H2':     return `## ${text}`;
+                case 'H3':     return `### ${text}`;
+                case 'H4':     return `#### ${text}`;
+                default:       return text;
+            }
+        }
+
+        function renderRawMarkdownNode(textNode) {
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE || !textNode.parentElement) return null;
+    
+            const text = textNode.textContent;
+            const parent = textNode.parentElement;
+            let match;
+            let newNode = null;
+            let isBlock = false;
+
+            if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
+                if (parent.tagName === 'DIV' && parent.parentElement === editor) {
+                    const level = match[1].length;
+                    newNode = document.createElement(`h${level}`);
+                    newNode.textContent = match[2];
+                    isBlock = true;
+                }
+            } 
+            else if ((match = text.match(/^\*\*([^*]+)\*\*$/))) {
+                newNode = document.createElement('strong');
+                newNode.textContent = match[1];
+            } else if ((match = text.match(/^\*([^*]+)\*$/))) {
+                newNode = document.createElement('em');
+                newNode.textContent = match[1];
+            } else if ((match = text.match(/^~~([^~]+)~~$/))) {
+                newNode = document.createElement('del');
+                newNode.textContent = match[1];
+            } else if ((match = text.match(/^`([^`]+)`$/))) {
+                newNode = document.createElement('code');
+                newNode.textContent = match[1];
+            } else if ((match = text.match(/^\[([^\]]+)\]\(([^)]+)\)$/))) {
+                newNode = document.createElement('a');
+                newNode.textContent = match[1];
+                newNode.href = match[2];
+                newNode.target = '_blank';
+            }
+
+            if (newNode) {
+                const selection = window.getSelection();
+                const range = document.createRange();
+
+                if (isBlock) {
+                    parent.replaceWith(newNode);
+                    moveCursorToEnd(newNode, selection);
+                } else {
+                    textNode.replaceWith(newNode);
+                    range.setStartAfter(newNode);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+                
+                localStorage.setItem('mySmartNote', editor.innerHTML);
+                return newNode;
+            }
+            return null;
+        }
+
+        function revealMarkdown(element) {
+            if (activeRawNode) {
+                renderRawMarkdownNode(activeRawNode);
+            }
+
+            const rawText = elementToRawMarkdown(element);
+            const textNode = document.createTextNode(rawText);
+            
+            if (element.tagName.startsWith('H')) {
+                const newDiv = document.createElement('div');
+                newDiv.appendChild(textNode);
+                element.replaceWith(newDiv);
+            } else {
+                element.replaceWith(textNode);
+            }
+            activeRawNode = textNode;
+
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(textNode);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+
+        function renderActiveNode() {
+            if (!activeRawNode) return;
+            
+            ignoreSelectionChange = true;
+            
+            const nodeToRender = activeRawNode;
+            activeRawNode = null; 
+            renderRawMarkdownNode(nodeToRender);
+
+            setTimeout(() => { ignoreSelectionChange = false; }, 0);
+        }
+
+        document.addEventListener('selectionchange', () => {
+            if (ignoreSelectionChange) return;
+
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount) return;
+            const anchorNode = selection.anchorNode;
+
+            if (!editor.contains(anchorNode)) {
+                if (activeRawNode) renderActiveNode();
+                return;
+            }
+
+            const parentElement = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
+
+            if (activeRawNode && anchorNode !== activeRawNode) {
+                renderActiveNode();
+                return; 
+            }
+
+            if (selection.isCollapsed && !activeRawNode) {
+                const elementToReveal = parentElement.closest('strong, em, del, code, a, h1, h2, h3, h4');
+                if (elementToReveal && !elementToReveal.closest('pre, table, blockquote, li')) {
+                    ignoreSelectionChange = true;
+                    revealMarkdown(elementToReveal);
+                    setTimeout(() => { ignoreSelectionChange = false; }, 0);
+                }
+            }
+        });
+
         editor.addEventListener('click', (e) => {
-            const link = e.target.closest('a');
-            if (link) {
+            const target = e.target;
+            
+            const link = target.closest('a');
+            if (link && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 window.open(link.href, '_blank');
                 return;
             }
             
-            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') {
-                const checklistItem = e.target.closest('li.checklist-item');
+            if (target.tagName === 'INPUT' && target.type === 'checkbox') {
+                const checklistItem = target.closest('li.checklist-item');
                 if (checklistItem) {
-                    // Use a timeout to allow the browser's default checkbox toggle to complete
-                    // before we sync the class and save the state.
                     setTimeout(() => {
-                        checklistItem.classList.toggle('checked', e.target.checked);
+                        checklistItem.classList.toggle('checked', target.checked);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                     }, 0);
                 }
@@ -284,6 +429,12 @@
         });
 
         editor.addEventListener('keydown', (e) => {
+            if (activeRawNode && e.key === 'Escape') {
+                e.preventDefault();
+                renderActiveNode();
+                return;
+            }
+            
             const selection = window.getSelection();
             if (!selection.rangeCount) return;
 
@@ -292,18 +443,13 @@
                 selection.anchorNode.parentElement :
                 selection.anchorNode;
 
-            // --- ۱. اولویت اول: مدیریت تعامل داخل عناصر پیچیده ---
-            // این بخش اول اجرا می‌شود تا از تداخل با منطق عمومی جلوگیری کند.
-
-            // الف) تعامل داخل لیست (تورفتگی و بیرون‌رفتگی با کلید Tab)
             const listItem = parentElement.closest('li');
             if (listItem && e.key === 'Tab') {
                 e.preventDefault();
-
-                if (e.shiftKey) { // بیرون‌رفتگی با Shift + Tab
+                if (e.shiftKey) {
                     const parentList = listItem.parentElement;
                     const parentLi = parentList.parentElement.closest('li');
-                    if (parentLi) { // فقط اگر آیتم تودرتو باشد
+                    if (parentLi) {
                         parentLi.after(listItem);
                         if (parentList.children.length === 0) {
                             parentList.remove();
@@ -311,7 +457,7 @@
                         moveCursorToEnd(listItem, selection);
                         localStorage.setItem('mySmartNote', editor.innerHTML);
                     }
-                } else { // تورفتگی با Tab
+                } else {
                     const previousLi = listItem.previousElementSibling;
                     if (previousLi) {
                         let depth = 0;
@@ -338,13 +484,11 @@
                         }
                     }
                 }
-                return; // پردازش کلید Tab را متوقف کن
+                return;
             }
             
-            // ب) حذف آیتم خالی چک‌لیست با Backspace
             const checklistItem = parentElement.closest('li.checklist-item');
             if (e.key === 'Backspace' && selection.isCollapsed && checklistItem && checklistItem.textContent.trim() === '') {
-                // اطمینان از اینکه مکان‌نما در ابتدای آیتم قرار دارد
                 if ((range.startContainer === checklistItem && range.startOffset <= 1) || (range.startContainer.parentElement === checklistItem && range.startOffset === 0)) {
                     e.preventDefault();
                     
@@ -352,22 +496,19 @@
                     const previousItem = checklistItem.previousElementSibling;
 
                     if (previousItem) {
-                        // آیتم قبلی وجود دارد، مکان‌نما به آنجا می‌رود
                         checklistItem.remove();
                         moveCursorToEnd(previousItem, selection);
                     } else {
-                        // این اولین آیتم در لیست است
                         const newPara = document.createElement('div');
                         newPara.innerHTML = '<br>';
                         
-                        // اگر لیست والد، خود تودرتو است، باید از آن خارج شویم
                         const parentLi = parentList.parentElement.closest('li');
                         if(parentLi) {
-                            parentList.remove(); // لیست خالی را حذف کن
+                            parentList.remove();
                             moveCursorToEnd(parentLi, selection);
                         } else {
                             parentList.before(newPara);
-                             if (parentList.children.length === 1) { // 1 because we haven't removed the item yet
+                             if (parentList.children.length === 1) {
                                 parentList.remove();
                             }
                             checklistItem.remove();
@@ -381,7 +522,6 @@
             }
 
 
-            // ج) تعامل داخل جدول
             const tableCell = parentElement.closest('th, td');
             if (tableCell) {
                 const currentRow = tableCell.parentElement;
@@ -399,20 +539,17 @@
                         const table = tableCell.closest('table');
                         const isHeaderRow = currentRow.parentElement.tagName === 'THEAD';
 
-                        // Get potential next focus targets before deleting
                         const previousRow = currentRow.previousElementSibling;
                         const nextRow = currentRow.nextElementSibling;
                         const firstBodyRow = table.tBodies[0]?.rows[0];
                         const lastHeaderRow = table.tHead?.rows[table.tHead.rows.length - 1];
 
-                        // Perform the deletion
-                        const parentContainer = currentRow.parentElement; // THEAD or TBODY
+                        const parentContainer = currentRow.parentElement;
                         currentRow.remove();
                         if (parentContainer.rows.length === 0) {
                             parentContainer.remove();
                         }
 
-                        // Check if table is now totally empty
                         if (table.rows.length === 0) {
                             const newPara = document.createElement('div');
                             newPara.innerHTML = '<br>';
@@ -420,19 +557,15 @@
                             table.remove();
                             moveCursorToEnd(newPara, selection);
                         } else if (isHeaderRow) {
-                            // Header was deleted, move to the first body row if it exists
                             if (firstBodyRow) {
                                 moveCursorToEnd(firstBodyRow.cells[0], selection);
                             }
-                        } else { // A body row was deleted
+                        } else { 
                             if (previousRow) {
-                                // Move to the previous sibling
                                 moveCursorToEnd(previousRow.cells[previousRow.cells.length - 1], selection);
                             } else if (nextRow) {
-                                // Move to the next sibling
                                 moveCursorToEnd(nextRow.cells[0], selection);
                             } else if (lastHeaderRow) {
-                                // It was the only body row, move to header
                                 moveCursorToEnd(lastHeaderRow.cells[lastHeaderRow.cells.length - 1], selection);
                             }
                         }
@@ -459,7 +592,7 @@
                         const newRow = currentRow.parentElement.insertRow(currentRow.rowIndex);
                         for (let i = 0; i < currentRow.cells.length; i++) {
                             const cell = newRow.insertCell(i);
-                            cell.appendChild(document.createElement('br')); // افزودن BR برای ارتفاع اولیه
+                            cell.appendChild(document.createElement('br'));
                             if (alignments[i]) {
                                 cell.style.textAlign = alignments[i];
                             }
@@ -472,7 +605,7 @@
 
                 if (e.key === 'Tab') {
                     e.preventDefault();
-                    if (e.shiftKey) { // Backwards navigation
+                    if (e.shiftKey) {
                         let prevCell = tableCell.previousElementSibling;
                         if (prevCell) {
                             moveCursorToEnd(prevCell, selection);
@@ -482,16 +615,14 @@
                                 moveCursorToEnd(prevRow.cells[prevRow.cells.length - 1], selection);
                             }
                         }
-                    } else { // Forwards navigation
+                    } else {
                         let nextCell = tableCell.nextElementSibling;
                         if (nextCell) {
                             moveCursorToEnd(nextCell, selection);
                         } else {
-                            // Last cell in a row: add a new column
                             const table = tableCell.closest('table');
                             const alignments = JSON.parse(table.dataset.alignments || '[]');
                             
-                            // UX Improvement: New column inherits alignment from the previous one.
                             const lastAlignment = alignments.length > 0 ? alignments[alignments.length - 1] : '';
                             alignments.push(lastAlignment);
                             table.dataset.alignments = JSON.stringify(alignments);
@@ -500,7 +631,6 @@
                             const newAlignment = alignments[newColumnIndex];
                             let newCellToFocus;
 
-                            // Add a new header cell to each header row
                             if (table.tHead) {
                                 for (const row of table.tHead.rows) {
                                     const newTh = document.createElement('th');
@@ -515,7 +645,6 @@
                                 }
                             }
 
-                            // Add a new data cell to each body row
                             if (table.tBodies.length > 0) {
                                 for (const row of table.tBodies[0].rows) {
                                     const newTd = document.createElement('td');
@@ -540,7 +669,6 @@
                 }
             }
 
-            // --- ۲. مدیریت کلید Enter برای ایجاد عناصر بلوکی جدید ---
             if (e.key === 'Enter') {
                 const handled = handleEnterKeyMarkdown(e, selection, parentElement);
                 if (handled) {
@@ -564,15 +692,13 @@
 
                 const blockquote = parentElement.closest('blockquote');
                 if (blockquote) {
-                    // Exit blockquote on double enter
                     if (parentElement !== blockquote && parentElement.textContent.trim() === '') {
                         e.preventDefault();
                         const newPara = document.createElement('div');
                         newPara.innerHTML = '<br>';
                         blockquote.after(newPara);
-                        parentElement.remove(); // Remove the empty line from the quote
+                        parentElement.remove();
 
-                        // If the blockquote is now empty, remove it too.
                         if (!blockquote.hasChildNodes() || blockquote.textContent.trim() === '') {
                             blockquote.remove();
                         }
@@ -645,7 +771,7 @@
                         const firstDataRow = tbody.insertRow();
                         for (let i = 0; i < headers.length; i++) {
                             const cell = firstDataRow.insertCell(i);
-                            cell.appendChild(document.createElement('br')); // افزودن BR برای ارتفاع اولیه
+                            cell.appendChild(document.createElement('br'));
                             if (alignments[i]) {
                                 cell.style.textAlign = alignments[i];
                             }
@@ -673,20 +799,19 @@
                     return;
                 }
 
-                // ادامه و خروج از لیست‌ها (با منطق جدید برای تودرتو)
                 const listItemOnEnter = parentElement.closest('li');
                 if (listItemOnEnter) {
                     if (listItemOnEnter.textContent.trim() === '') {
                         e.preventDefault();
                         const parentList = listItemOnEnter.parentElement;
                         const parentLi = parentList.parentElement.closest('li');
-                        if (parentLi) { // اگر آیتم تودرتو است، یک سطح بیرون بیا
+                        if (parentLi) {
                             parentLi.after(listItemOnEnter);
                             if (parentList.children.length === 0) {
                                 parentList.remove();
                             }
                             moveCursorToEnd(listItemOnEnter, selection);
-                        } else { // اگر در سطح اول است، از لیست خارج شو
+                        } else {
                             const list = listItemOnEnter.parentElement;
                             const newPara = document.createElement('div');
                             newPara.innerHTML = '<br>';
@@ -713,6 +838,8 @@
         });
 
         editor.addEventListener('keyup', (e) => {
+            if (activeRawNode) return;
+
             if (e.key === ' ') {
                 const selection = window.getSelection();
                 if (!selection.rangeCount) return;
@@ -812,13 +939,13 @@
                             a.target = '_blank';
                             return a;
                         });
-                    } else if ((match = text.match(/\*\*([^\*]+)\*\*\s$/))) {
+                    } else if ((match = text.match(/\*\*([^*]+)\*\*\s$/))) {
                         replaceMarkdown(node, match, (m) => {
                             const strong = document.createElement('strong');
                             strong.textContent = m[1];
                             return strong;
                         });
-                    } else if ((match = text.match(/\*([^\*]+)\*\s$/))) {
+                    } else if ((match = text.match(/\*([^*]+)\*\s$/))) {
                         replaceMarkdown(node, match, (m) => {
                             const em = document.createElement('em');
                             em.textContent = m[1];
@@ -836,7 +963,6 @@
         });
 
         function handleEnterKeyMarkdown(e, selection, parentElement) {
-            // Only apply to simple blocks at the root of the editor
             if (parentElement.parentElement !== editor) {
                 return false;
             }
@@ -844,7 +970,6 @@
             const text = parentElement.textContent;
             let match;
 
-            // Block-level conversions
             if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
                 e.preventDefault();
                 const level = match[1].length;
@@ -908,7 +1033,6 @@
                 return true;
             }
 
-            // Inline-level conversions
             const textNode = parentElement.lastChild;
             if (textNode && textNode.nodeType === Node.TEXT_NODE) {
                 const nodeText = textNode.textContent;
@@ -937,9 +1061,9 @@
                     return true;
                 } else if (replaceAndBreak(/\[([^\]]+)\]\(([^)]+)\)$/, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; })) {
                     return true;
-                } else if (replaceAndBreak(/\*\*([^\*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) {
+                } else if (replaceAndBreak(/\*\*([^*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) {
                     return true;
-                } else if (replaceAndBreak(/\*([^\*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) {
+                } else if (replaceAndBreak(/\*([^*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) {
                     return true;
                 } else if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; })) {
                     return true;
@@ -970,11 +1094,10 @@
         function moveCursorToEnd(element, selection) {
             const range = document.createRange();
             if (element.firstChild && element.firstChild.nodeName === 'BR' && element.childNodes.length === 1) {
-                // If the only child is a BR, place cursor before it
                 range.setStart(element, 0);
             } else {
                 range.selectNodeContents(element);
-                range.collapse(false); // false means collapse to the end
+                range.collapse(false);
             }
             selection.removeAllRanges();
             selection.addRange(range);
@@ -1004,6 +1127,12 @@
             e.preventDefault();
             const text = (e.clipboardData || window.clipboardData).getData('text/plain');
             document.execCommand('insertText', false, text);
+        });
+
+        editor.addEventListener('focusout', () => {
+            if (activeRawNode) {
+                renderActiveNode();
+            }
         });
     </script>
 </body>
