@@ -301,6 +301,7 @@ class DabirEditor {
                     range.setEnd(textNode, match.index + match[0].length);
                     range.deleteContents();
                     const newElement = createFn(match);
+                    if (!newElement) return false;
                     range.insertNode(newElement);
 
                     const newPara = document.createElement('div');
@@ -314,7 +315,14 @@ class DabirEditor {
 
             if (replaceAndBreak(/`([^`]+)`$/, (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; })) {
                 return true;
-            } else if (replaceAndBreak(/(?<!\!)\[([^\]]+)\]\(([^)]+)\)$/, (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; })) {
+            } else if (replaceAndBreak(/\[([^\]]+)\]\(([^)]+)\)$/, (m) => {
+                const fullText = textNode.textContent;
+                const matchIndex = fullText.lastIndexOf(m[0]);
+                if (matchIndex === -1 || fullText.charAt(matchIndex - 1) === '!') {
+                    return null;
+                }
+                const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a;
+            })) {
                 return true;
             } else if (replaceAndBreak(/\*\*([^*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) {
                 return true;
@@ -485,9 +493,16 @@ class DabirEditor {
         let currentParagraphLines = [];
 
         const parseInline = (text) => {
-            return text
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // Escape HTML
-                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+            let escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            escapedText = escapedText.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, prefix, linkText, url) => {
+                if (prefix === '!') {
+                    return match; 
+                }
+                return `<a href="${url.replace(/"/g, '&quot;')}" target="_blank">${linkText}</a>`;
+            });
+
+            return escapedText
                 .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*([^*]+)\*/g, '<em>$1</em>')
                 .replace(/~~([^~]+)~~/g, '<del>$1</del>')
@@ -1260,14 +1275,16 @@ class DabirEditor {
                             return code;
                         });
                     }
-                    if ((match = text.match(/(?<!\!)\[([^\]]+)\]\(([^)]+)\)\s$/))) {
-                        this._replaceMarkdown(node, match, (m) => {
-                            const a = document.createElement('a');
-                            a.href = m[2];
-                            a.textContent = m[1];
-                            a.target = '_blank';
-                            return a;
-                        });
+                    if ((match = text.match(/\[([^\]]+)\]\(([^)]+)\)\s$/))) {
+                        if (text.charAt(match.index - 1) !== '!') {
+                            this._replaceMarkdown(node, match, (m) => {
+                                const a = document.createElement('a');
+                                a.href = m[2];
+                                a.textContent = m[1];
+                                a.target = '_blank';
+                                return a;
+                            });
+                        }
                     } else if ((match = text.match(/\*\*([^*]+)\*\*\s$/))) {
                         this._replaceMarkdown(node, match, (m) => {
                             const strong = document.createElement('strong');
