@@ -18,6 +18,12 @@ class DabirEditor {
         this._init();
     }
 
+    _persianToArabic(str) {
+        if (typeof str !== 'string') return '';
+        const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+        return str.replace(/[۰-۹]/g, (d) => persianDigits.indexOf(d));
+    }
+
     _init() {
         this.element.classList.add('dabir-editor');
         this.element.setAttribute('contenteditable', 'true');
@@ -364,12 +370,12 @@ class DabirEditor {
             return true;
         }
 
-        if ((match = text.match(/^(\d+)\.\s([^\n]*?)$/))) {
+        if ((match = text.match(/^([\d۰-۹]+)\.\s([^\n]*?)$/))) {
             e.preventDefault();
             const content = match[2];
             const ol = document.createElement('ol');
             const li = document.createElement('li');
-            const startNum = parseInt(match[1], 10);
+            const startNum = parseInt(this._persianToArabic(match[1]), 10);
             if (startNum > 1) {
                 ol.setAttribute('start', startNum);
             }
@@ -548,7 +554,7 @@ class DabirEditor {
         while(i < lines.length) {
             const line = lines[i];
             const trimmedLine = line.trim();
-            const match = trimmedLine.match(/^([-*]|\d+\.) (.*)/);
+            const match = trimmedLine.match(/^([-*]|[\d۰-۹]+\.) (.*)/);
 
             if (!match) break;
             
@@ -672,7 +678,7 @@ class DabirEditor {
                 continue;
             }
             
-            if (/^(\s*[-*]|\s*\d+\.) /.test(line)) {
+            if (/^(\s*[-*]|\s*[\d۰-۹]+\.) /.test(line)) {
                 flushParagraph();
                 const listResult = this._processListBlock(lines, i, parseInline);
                 html += listResult.html;
@@ -1456,11 +1462,11 @@ class DabirEditor {
                             elementToReplace.replaceWith(newQuote);
                             this._moveCursorToEnd(line, selection);
                             return;
-                        } else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) {
+                        } else if ((match = text.match(/^([\d۰-۹]+)\.\s([^\n]*?)\s$/))) {
                             const content = match[2];
                             const ol = document.createElement('ol');
                             const li = document.createElement('li');
-                            const startNum = parseInt(match[1], 10);
+                            const startNum = parseInt(this._persianToArabic(match[1]), 10);
                             if (startNum > 1) {
                                 ol.setAttribute('start', startNum);
                             }
