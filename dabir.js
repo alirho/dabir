@@ -293,6 +293,18 @@ class DabirEditor {
         const text = parentElement.textContent;
         let match;
 
+        if (text.trim() === '---') {
+            e.preventDefault();
+            const hr = document.createElement('hr');
+            parentElement.replaceWith(hr);
+            
+            const newPara = document.createElement('div');
+            newPara.innerHTML = '<br>';
+            hr.after(newPara);
+            this._moveCursorToEnd(newPara, selection);
+            return true;
+        }
+
         if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
             e.preventDefault();
             const level = match[1].length;
@@ -604,6 +616,12 @@ class DabirEditor {
                 html += `<pre><code class="language-${codeLang}">`;
                 continue;
             }
+
+            if (line.trim() === '---') {
+                flushParagraph();
+                html += '<hr>';
+                continue;
+            }
             
             let match = line.match(/^(#{1,4}) (.*)/);
             if (match) {
@@ -688,6 +706,7 @@ class DabirEditor {
                                     .join('');
             
             switch (node.tagName) {
+                case 'HR': return '\n---\n\n';
                 case 'H1': return `# ${childMarkdown}\n\n`;
                 case 'H2': return `## ${childMarkdown}\n\n`;
                 case 'H3': return `### ${childMarkdown}\n\n`;
@@ -1376,6 +1395,16 @@ class DabirEditor {
 
                     if (isTopLevelBlock || isRootTextNode) {
                         const elementToReplace = isTopLevelBlock ? parentBlock : node;
+
+                        if (text.trim() === '---') {
+                            const hr = document.createElement('hr');
+                            elementToReplace.replaceWith(hr);
+                            const newPara = document.createElement('div');
+                            newPara.innerHTML = '<br>';
+                            hr.after(newPara);
+                            this._moveCursorToEnd(newPara, selection);
+                            return;
+                        }
 
                         if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) {
                             const level = match[1].length;
