@@ -245,6 +245,76 @@
     margin: 2em 0;
 }
 
+.dabir-editor .dabir-admonition {
+    padding: 1em 1.5em;
+    margin: 1.5em 0;
+    border-right: 5px solid;
+    border-radius: 4px;
+}
+
+.dabir-editor .dabir-admonition[dir="ltr"] {
+    border-right: none;
+    border-left: 5px solid;
+}
+
+.dabir-editor .dabir-admonition > *:first-child {
+    margin-top: 0;
+}
+
+.dabir-editor .dabir-admonition > *:last-child {
+    margin-bottom: 0;
+}
+
+.dabir-editor .dabir-admonition-title {
+    font-weight: 700;
+    margin: 0 0 0.5em;
+}
+
+/* توجه (Note) */
+.dabir-editor .dabir-admonition--note {
+    border-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.07);
+}
+.dabir-editor .dabir-admonition--note .dabir-admonition-title {
+    color: #0d6efd;
+}
+
+/* نکته (Tip) */
+.dabir-editor .dabir-admonition--tip {
+    border-color: #198754;
+    background-color: rgba(25, 135, 84, 0.07);
+}
+.dabir-editor .dabir-admonition--tip .dabir-admonition-title {
+    color: #198754;
+}
+
+/* مهم (Important) */
+.dabir-editor .dabir-admonition--important {
+    border-color: #6f42c1;
+    background-color: rgba(111, 66, 193, 0.07);
+}
+.dabir-editor .dabir-admonition--important .dabir-admonition-title {
+    color: #6f42c1;
+}
+
+/* هشدار (Warning) */
+.dabir-editor .dabir-admonition--warning {
+    border-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.07);
+}
+.dabir-editor .dabir-admonition--warning .dabir-admonition-title {
+    color: #b98900;
+}
+
+/* احتیاط (Caution) */
+.dabir-editor .dabir-admonition--caution {
+    border-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.07);
+}
+.dabir-editor .dabir-admonition--caution .dabir-admonition-title {
+    color: #dc3545;
+}
+
 .dabir-editor [dir="ltr"] {
     text-align: left;
 }

@@ -69,6 +69,19 @@ class DabirEditor {
 
     _elementToRawMarkdown(el) {
         const text = el.textContent;
+        if (el.classList.contains('dabir-admonition')) {
+            const type = el.dataset.admonitionType;
+            const titleNode = el.querySelector('.dabir-admonition-title');
+            const lines = [];
+            el.childNodes.forEach(child => {
+                if (child !== titleNode) {
+                    lines.push(child.textContent);
+                }
+            });
+            const innerContent = lines.join('\n');
+            return `...${type}\n${innerContent}\n...`;
+        }
+
         switch (el.tagName) {
             case 'STRONG': return `**${text}**`;
             case 'EM':     return `*${text}*`;
@@ -158,6 +171,49 @@ class DabirEditor {
                     });
                     isBlock = true;
                 }
+            } else {
+                const admonitionStartRegex = /^\.\.\.(هشدار|توجه|نکته|مهم|احتیاط)/;
+                const textTrimmed = text.trim();
+                const lines = textTrimmed.split('\n');
+
+                if (lines.length >= 2 && admonitionStartRegex.test(lines[0]) && lines[lines.length - 1] === '...') {
+                    const typeMatch = lines[0].match(/^\.\.\.(.+)/);
+                    if (typeMatch) {
+                        const type = typeMatch[1];
+                        let typeClass = '';
+                        switch (type) {
+                            case 'هشدار': typeClass = 'warning'; break;
+                            case 'توجه': typeClass = 'note'; break;
+                            case 'نکته': typeClass = 'tip'; break;
+                            case 'مهم': typeClass = 'important'; break;
+                            case 'احتیاط': typeClass = 'caution'; break;
+                        }
+                
+                        newNode = document.createElement('div');
+                        newNode.className = `dabir-admonition dabir-admonition--${typeClass}`;
+                        newNode.dataset.admonitionType = type;
+                        
+                        const titleEl = document.createElement('p');
+                        titleEl.className = 'dabir-admonition-title';
+                        titleEl.textContent = type;
+                        newNode.appendChild(titleEl);
+                
+                        const contentLines = lines.slice(1, -1);
+                        const contentHtml = this._markdownToHtml(contentLines.join('\n'));
+                        
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = contentHtml;
+                        if (tempDiv.childNodes.length === 0) {
+                            const emptyLine = document.createElement('div');
+                            emptyLine.innerHTML = '<br>';
+                            newNode.appendChild(emptyLine);
+                        } else {
+                            Array.from(tempDiv.childNodes).forEach(child => newNode.appendChild(child));
+                        }
+                
+                        isBlock = true;
+                    }
+                }
             }
         }
         
@@ -216,7 +272,7 @@ class DabirEditor {
         const rawText = this._elementToRawMarkdown(element);
         const textNode = document.createTextNode(rawText);
         
-        const isBlock = ['H1', 'H2', 'H3', 'H4', 'FIGURE', 'BLOCKQUOTE'].includes(element.tagName);
+        const isBlock = ['H1', 'H2', 'H3', 'H4', 'FIGURE', 'BLOCKQUOTE'].includes(element.tagName) || element.classList.contains('dabir-admonition');
         if (isBlock) {
             const newDiv = document.createElement('div');
             newDiv.appendChild(textNode);
@@ -332,6 +388,37 @@ class DabirEditor {
             newPara.innerHTML = '<br>';
             hr.after(newPara);
             this._moveCursorToEnd(newPara, selection);
+            return true;
+        }
+
+        const admonitionStartRegex = /^\.\.\.(هشدار|توجه|نکته|مهم|احتیاط)$/;
+        if ((match = text.trim().match(admonitionStartRegex))) {
+            e.preventDefault();
+            const type = match[1];
+            let typeClass = '';
+            switch (type) {
+                case 'هشدار': typeClass = 'warning'; break;
+                case 'توجه': typeClass = 'note'; break;
+                case 'نکته': typeClass = 'tip'; break;
+                case 'مهم': typeClass = 'important'; break;
+                case 'احتیاط': typeClass = 'caution'; break;
+            }
+            
+            const newAdmonition = document.createElement('div');
+            newAdmonition.className = `dabir-admonition dabir-admonition--${typeClass}`;
+            newAdmonition.dataset.admonitionType = type;
+    
+            const titleEl = document.createElement('p');
+            titleEl.className = 'dabir-admonition-title';
+            titleEl.textContent = type;
+            newAdmonition.appendChild(titleEl);
+    
+            const firstLine = document.createElement('div');
+            firstLine.innerHTML = '<br>';
+            newAdmonition.appendChild(firstLine);
+    
+            parentElement.replaceWith(newAdmonition);
+            this._moveCursorToEnd(firstLine, selection);
             return true;
         }
 
@@ -650,13 +737,43 @@ class DabirEditor {
                 continue;
             }
 
+            const admonitionStartRegex = /^\.\.\.(هشدار|توجه|نکته|مهم|احتیاط)$/;
+            let match = line.trim().match(admonitionStartRegex);
+            if (match) {
+                flushParagraph();
+                const type = match[1];
+                let typeClass = '';
+                switch (type) {
+                    case 'هشدار': typeClass = 'warning'; break;
+                    case 'توجه': typeClass = 'note'; break;
+                    case 'نکته': typeClass = 'tip'; break;
+                    case 'مهم': typeClass = 'important'; break;
+                    case 'احتیاط': typeClass = 'caution'; break;
+                }
+        
+                let admonitionContent = [];
+                i++;
+                while(i < lines.length && lines[i].trim() !== '...') {
+                    admonitionContent.push(lines[i]);
+                    i++;
+                }
+                
+                const contentHtml = this._markdownToHtml(admonitionContent.join('\n'));
+        
+                html += `<div class="dabir-admonition dabir-admonition--${typeClass}" data-admonition-type="${type}">`;
+                html += `<p class="dabir-admonition-title">${type}</p>`;
+                html += contentHtml || '<div><br></div>';
+                html += `</div>`;
+                continue;
+            }
+
             if (line.trim() === '---') {
                 flushParagraph();
                 html += '<hr>';
                 continue;
             }
             
-            let match = line.match(/^(#{1,4}) (.*)/);
+            match = line.match(/^(#{1,4}) (.*)/);
             if (match) {
                 flushParagraph();
                 const level = match[1].length;
@@ -734,6 +851,19 @@ class DabirEditor {
                 return '';
             }
 
+            if (node.classList.contains('dabir-admonition')) {
+                const type = node.dataset.admonitionType;
+                const titleNode = node.querySelector('.dabir-admonition-title');
+                
+                const contentNodes = Array.from(node.childNodes).filter(n => n !== titleNode);
+                const innerContainer = document.createElement('div');
+                contentNodes.forEach(n => innerContainer.appendChild(n.cloneNode(true)));
+                
+                let innerMarkdown = Array.from(innerContainer.childNodes).map(child => convertNode(child, listState)).join('');
+        
+                return `\n...${type}\n${innerMarkdown.trim()}\n...\n\n`;
+            }
+
             let childMarkdown = Array.from(node.childNodes)
                                     .map(child => convertNode(child, listState))
                                     .join('');
@@ -751,9 +881,9 @@ class DabirEditor {
                 case 'CODE': return node.closest('pre') ? childMarkdown : `\`${childMarkdown}\``;
                 case 'A': return `[${childMarkdown}](${node.href})`;
                 case 'BR': return '\n';
+                case 'P': return `${childMarkdown}\n\n`;
                 case 'DIV': 
-                case 'P':
-                    return `${childMarkdown}${node.parentElement === container ? '\n\n' : ''}`;
+                    return `${childMarkdown}${node.parentElement === container ? '\n\n' : '\n'}`;
                 case 'FIGURE': {
                     const img = node.querySelector('img');
                     const figcaption = node.querySelector('figcaption');
@@ -897,7 +1027,7 @@ class DabirEditor {
                 this._renderActiveNode();
             } else if (selection.isCollapsed && !this.activeRawNode) {
                 const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
-                const elementToReveal = parentElement.closest('strong, em, del, code, a, mark, h1, h2, h3, h4, figure, blockquote');
+                const elementToReveal = parentElement.closest('strong, em, del, code, a, mark, h1, h2, h3, h4, figure, blockquote, .dabir-admonition');
                 if (elementToReveal && !elementToReveal.closest('pre, table')) {
                     this.ignoreSelectionChange = true;
                     this._revealMarkdown(elementToReveal);
@@ -1242,6 +1372,20 @@ class DabirEditor {
                     }
                     
                     return;
+                }
+
+                const admonition = parentElement.closest('.dabir-admonition');
+                if (admonition) {
+                    if (parentElement.tagName === 'DIV' && parentElement.textContent.trim() === '') {
+                        e.preventDefault();
+                        const newPara = document.createElement('div');
+                        newPara.innerHTML = '<br>';
+                        admonition.after(newPara);
+                        parentElement.remove();
+                        this._moveCursorToEnd(newPara, selection);
+                        this._saveContent();
+                        return;
+                    }
                 }
 
                 const blockquote = parentElement.closest('blockquote');
