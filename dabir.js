@@ -879,7 +879,7 @@ class DabirEditor {
             } else if (selection.isCollapsed && !this.activeRawNode) {
                 const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
                 const elementToReveal = parentElement.closest('strong, em, del, code, a, h1, h2, h3, h4, figure, blockquote');
-                if (elementToReveal && !elementToReveal.closest('pre, table, li')) {
+                if (elementToReveal && !elementToReveal.closest('pre, table')) {
                     this.ignoreSelectionChange = true;
                     this._revealMarkdown(elementToReveal);
                     setTimeout(() => { this.ignoreSelectionChange = false; }, 0);
