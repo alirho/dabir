@@ -371,18 +371,28 @@ class DabirEditor {
     }
 
     _handleEnterKeyMarkdown(e, selection, parentElement) {
-        const parentOfParent = parentElement.parentElement;
-        if (parentOfParent !== this.element && parentOfParent.tagName !== 'BLOCKQUOTE') {
-            return false;
-        }
+        let nodeToReplace = parentElement;
         
-        const text = parentElement.textContent;
+        if (parentElement === this.element) {
+            const currentNode = selection.anchorNode;
+            if (currentNode.nodeType !== Node.TEXT_NODE || currentNode.parentElement !== this.element) {
+                return false; 
+            }
+            nodeToReplace = currentNode;
+        } else {
+            const parentOfParent = parentElement.parentElement;
+            if (parentOfParent !== this.element && parentOfParent.tagName !== 'BLOCKQUOTE') {
+                return false;
+            }
+        }
+    
+        const text = nodeToReplace.textContent;
         let match;
-
+    
         if (text.trim() === '---') {
             e.preventDefault();
             const hr = document.createElement('hr');
-            parentElement.replaceWith(hr);
+            nodeToReplace.replaceWith(hr);
             
             const newPara = document.createElement('div');
             newPara.innerHTML = '<br>';
@@ -390,7 +400,7 @@ class DabirEditor {
             this._moveCursorToEnd(newPara, selection);
             return true;
         }
-
+    
         const admonitionStartRegex = /^\.\.\.(هشدار|توجه|نکته|مهم|احتیاط)$/;
         if ((match = text.trim().match(admonitionStartRegex))) {
             e.preventDefault();
@@ -417,18 +427,18 @@ class DabirEditor {
             firstLine.innerHTML = '<br>';
             newAdmonition.appendChild(firstLine);
     
-            parentElement.replaceWith(newAdmonition);
+            nodeToReplace.replaceWith(newAdmonition);
             this._moveCursorToEnd(firstLine, selection);
             return true;
         }
-
+    
         if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
             e.preventDefault();
             const level = match[1].length;
             const content = match[2];
             const newHeading = document.createElement(`h${level}`);
             newHeading.textContent = content;
-            parentElement.replaceWith(newHeading);
+            nodeToReplace.replaceWith(newHeading);
             
             const newPara = document.createElement('div');
             newPara.innerHTML = '<br>';
@@ -448,7 +458,7 @@ class DabirEditor {
                 line.innerHTML = this._parseInlineMarkdown(content);
             }
             newQuote.appendChild(line);
-            parentElement.replaceWith(newQuote);
+            nodeToReplace.replaceWith(newQuote);
             
             const newPara = document.createElement('div');
             newPara.innerHTML = '<br>';
@@ -456,7 +466,7 @@ class DabirEditor {
             this._moveCursorToEnd(newPara, selection);
             return true;
         }
-
+    
         if ((match = text.match(/^([\d۰-۹]+)\.\s([^\n]*?)$/))) {
             e.preventDefault();
             const content = match[2];
@@ -468,11 +478,11 @@ class DabirEditor {
             }
             li.textContent = content || '';
             ol.appendChild(li);
-            parentElement.replaceWith(ol);
+            nodeToReplace.replaceWith(ol);
             this._moveCursorToEnd(li, selection);
             return true;
         }
-
+    
         if ((match = text.match(/^([*-])\s([^\n]*?)$/))) {
             e.preventDefault();
             const content = match[2];
@@ -480,15 +490,15 @@ class DabirEditor {
             const li = document.createElement('li');
             li.textContent = content || '';
             ul.appendChild(li);
-            parentElement.replaceWith(ul);
+            nodeToReplace.replaceWith(ul);
             this._moveCursorToEnd(li, selection);
             return true;
         }
-
+    
         const textNode = parentElement.lastChild;
         if (textNode && textNode.nodeType === Node.TEXT_NODE) {
             const nodeText = textNode.textContent;
-
+    
             const replaceAndBreak = (regex, createFn) => {
                 const match = nodeText.match(regex);
                 if (match) {
@@ -500,7 +510,7 @@ class DabirEditor {
                     const newElement = createFn(match);
                     if (!newElement) return false;
                     range.insertNode(newElement);
-
+    
                     const newPara = document.createElement('div');
                     newPara.innerHTML = '<br>';
                     parentElement.after(newPara);
@@ -509,7 +519,7 @@ class DabirEditor {
                 }
                 return false;
             };
-
+    
             if (replaceAndBreak(/`([^`]+)`$/, (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; })) {
                 return true;
             } else if (replaceAndBreak(/\[([^\]]+)\]\(([^)]+)\)$/, (m) => {
@@ -531,7 +541,7 @@ class DabirEditor {
                 return true;
             }
         }
-
+    
         return false;
     }
 
