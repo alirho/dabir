@@ -1,4 +1,3 @@
-
 class DabirEditor {
     constructor(selector, options = {}) {
         this.element = document.querySelector(selector);
