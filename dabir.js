@@ -1,3 +1,4 @@
+
 class DabirEditor {
     constructor(selector, options = {}) {
         this.element = document.querySelector(selector);
@@ -13,6 +14,7 @@ class DabirEditor {
 
         this.activeRawNode = null;
         this.ignoreSelectionChange = false;
+        this.lastRange = null;
 
         this._init();
     }
@@ -88,7 +90,7 @@ class DabirEditor {
         }
     }
 
-    _renderRawMarkdownNode(textNode) {
+    _renderRawMarkdownNode(textNode, moveCursor = true) {
         if (!textNode || textNode.nodeType !== Node.TEXT_NODE || !textNode.parentElement) return null;
 
         const text = textNode.textContent;
@@ -97,7 +99,8 @@ class DabirEditor {
         let newNode = null;
         let isBlock = false;
 
-        if (parent.tagName === 'DIV' && parent.parentElement === this.element) {
+        const isTopLevelBlock = (parent.tagName === 'DIV' && parent.parentElement === this.element) || parent === this.element;
+        if (isTopLevelBlock) {
             if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
                 const level = match[1].length;
                 newNode = document.createElement(`h${level}`);
@@ -158,18 +161,20 @@ class DabirEditor {
         }
 
         if (newNode) {
-            const selection = window.getSelection();
-            const range = document.createRange();
+            const elementToReplace = isBlock ? (parent === this.element ? textNode : parent) : textNode;
+            elementToReplace.replaceWith(newNode);
 
-            if (isBlock) {
-                parent.replaceWith(newNode);
-                this._moveCursorToEnd(newNode, selection);
-            } else {
-                textNode.replaceWith(newNode);
-                range.setStartAfter(newNode);
-                range.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(range);
+            if (moveCursor) {
+                const selection = window.getSelection();
+                if (isBlock) {
+                    this._moveCursorToEnd(newNode, selection);
+                } else {
+                    const range = document.createRange();
+                    range.setStartAfter(newNode);
+                    range.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
             }
             
             this._saveContent();
@@ -216,6 +221,70 @@ class DabirEditor {
         setTimeout(() => { this.ignoreSelectionChange = false; }, 0);
     }
     
+    _scanAndRenderAllInlineMarkdown(textNode) {
+        if (!textNode || textNode.nodeType !== Node.TEXT_NODE || !textNode.parentElement) return;
+        if (textNode.parentElement.closest('a, strong, em, del, code, pre, h1, h2, h3, h4')) return;
+
+        const text = textNode.textContent;
+
+        const patterns = [
+            { 
+                regex: /(?<!`|!\[[^\]]*\]\([^)]*\))\[([^\]]+)\]\(([^)]+)\)/, 
+                createFn: (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; }
+            },
+            { 
+                regex: /\*\*([^\*]+)\*\*/, 
+                createFn: (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; }
+            },
+            { 
+                regex: /(?<!\*)\*([^\*]+)\*(?!\*)/, 
+                createFn: (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; }
+            },
+            { 
+                regex: /~~([^~]+)~~/, 
+                createFn: (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; }
+            },
+            { 
+                regex: /`([^`]+)`/, 
+                createFn: (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; }
+            },
+        ];
+
+        for (const { regex, createFn } of patterns) {
+            const match = text.match(regex);
+            if (match) {
+                const newElement = createFn(match);
+                const selection = window.getSelection();
+                const currentRange = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+
+                const range = document.createRange();
+                range.setStart(textNode, match.index);
+                range.setEnd(textNode, match.index + match[0].length);
+                range.deleteContents();
+                range.insertNode(newElement);
+
+                if (currentRange && currentRange.startContainer === textNode) {
+                    const offset = currentRange.startOffset;
+                    if (offset > match.index) {
+                        const newOffset = offset - match[0].length + 1;
+                        const newRange = document.createRange();
+                        newRange.setStart(newElement.firstChild || newElement, Math.max(0, newOffset));
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+
+                this._scanAndRenderAllInlineMarkdown(textNode);
+                if (newElement.nextSibling && newElement.nextSibling.nodeType === Node.TEXT_NODE) {
+                    this._scanAndRenderAllInlineMarkdown(newElement.nextSibling);
+                }
+                
+                return;
+            }
+        }
+    }
+
     _handleEnterKeyMarkdown(e, selection, parentElement) {
         if (parentElement.parentElement !== this.element) {
             return false;
@@ -726,22 +795,55 @@ class DabirEditor {
             if (this.ignoreSelectionChange) return;
 
             const selection = window.getSelection();
-            if (!selection || !selection.rangeCount) return;
-            const anchorNode = selection.anchorNode;
+            if (!selection.rangeCount) return;
 
-            if (!this.element.contains(anchorNode)) {
-                if (this.activeRawNode) this._renderActiveNode();
-                return;
+            const newRange = selection.getRangeAt(0);
+            const container = newRange.startContainer;
+
+            const previousRange = this.lastRange;
+            if (previousRange &&
+                previousRange.startContainer !== container &&
+                previousRange.startContainer.nodeType === Node.TEXT_NODE &&
+                this.element.contains(previousRange.startContainer)) {
+
+                const nodeToScan = previousRange.startContainer;
+                if (nodeToScan && document.body.contains(nodeToScan)) {
+                    this._scanAndRenderAllInlineMarkdown(nodeToScan);
+                }
+            }
+            
+            if (newRange.isCollapsed && container.nodeType === Node.TEXT_NODE && this.element.contains(container)) {
+                if (!container.parentElement.closest('a, strong, em, del, code')) {
+                    const text = container.textContent;
+                    const offset = newRange.startOffset;
+                    const allPatternsRegex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(~~([^~]+)~~)|(`([^`]+)`)|(?!`|!\[[^\]]*\]\([^)]*\))\[([^\]]+)\]\(([^)]+)\)/g;
+
+                    let match;
+                    let cursorIsInAPattern = false;
+                    while ((match = allPatternsRegex.exec(text)) !== null) {
+                        const startIndex = match.index;
+                        const endIndex = match.index + match[0].length;
+                        if (offset > startIndex && offset < endIndex) {
+                            cursorIsInAPattern = true;
+                            break;
+                        }
+                    }
+
+                    if (!cursorIsInAPattern) {
+                        // We must check if there is a pattern to prevent re-rendering on every cursor move in plain text
+                        const hasPattern = allPatternsRegex.test(text);
+                        allPatternsRegex.lastIndex = 0; // Reset regex state after test()
+                        if(hasPattern) {
+                            this._scanAndRenderAllInlineMarkdown(container);
+                        }
+                    }
+                }
             }
 
-            const parentElement = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
-
-            if (this.activeRawNode && anchorNode !== this.activeRawNode) {
+            if (this.activeRawNode && container !== this.activeRawNode) {
                 this._renderActiveNode();
-                return; 
-            }
-
-            if (selection.isCollapsed && !this.activeRawNode) {
+            } else if (selection.isCollapsed && !this.activeRawNode) {
+                const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
                 const elementToReveal = parentElement.closest('strong, em, del, code, a, h1, h2, h3, h4, figure, blockquote');
                 if (elementToReveal && !elementToReveal.closest('pre, table, li')) {
                     this.ignoreSelectionChange = true;
@@ -749,7 +851,10 @@ class DabirEditor {
                     setTimeout(() => { this.ignoreSelectionChange = false; }, 0);
                 }
             }
+
+            this.lastRange = newRange.cloneRange();
         });
+
 
         this.element.addEventListener('click', (e) => {
             const target = e.target;
@@ -768,7 +873,6 @@ class DabirEditor {
                         const isChecked = target.checked;
                         checklistItem.classList.toggle('checked', isChecked);
 
-                        // Propagate the checked state to all child checklist items
                         const childItems = checklistItem.querySelectorAll('li.checklist-item');
                         childItems.forEach(item => {
                             item.classList.toggle('checked', isChecked);
@@ -1033,7 +1137,6 @@ class DabirEditor {
 
                 const pre = parentElement.closest('pre');
                 if (pre) {
-                    // Handle exiting the code block on a double enter.
                     if (selection.isCollapsed) {
                         const range = selection.getRangeAt(0);
                         const testRange = range.cloneRange();
@@ -1041,18 +1144,13 @@ class DabirEditor {
                         testRange.setStart(range.endContainer, range.endOffset);
                         const isAtEnd = testRange.toString().trim() === '';
 
-                        // Use innerText to correctly read newlines from <br> tags or text nodes.
                         const text = pre.innerText;
 
-                        // Condition: cursor is at the end of the block, and the block ends with a newline
-                        // (i.e., the cursor is on a new, empty line).
                         if (isAtEnd && text.endsWith('\n')) {
                             e.preventDefault();
 
                             const code = pre.querySelector('code');
                             if (code) {
-                                // Robustly remove the last newline from the DOM before exiting.
-                                // The newline could be a <br> element or a \n character in a text node.
                                 const lastChild = code.lastChild;
                                 if (lastChild) {
                                     if (lastChild.nodeName === 'BR') {
@@ -1070,18 +1168,16 @@ class DabirEditor {
                             newPara.innerHTML = '<br>';
                             pre.after(newPara);
                             
-                            // If the code block is now empty, remove it entirely.
                             if (pre.textContent.trim() === '') {
                                 pre.remove();
                             }
 
                             this._moveCursorToEnd(newPara, selection);
                             this._saveContent();
-                            return; // We've handled the event.
+                            return;
                         }
                     }
                     
-                    // Handle exiting by typing ```
                     if (parentElement.textContent.trim() === '```') {
                         e.preventDefault();
                         const newPara = document.createElement('div');
@@ -1092,8 +1188,6 @@ class DabirEditor {
                         this._saveContent();
                     }
                     
-                    // Allow normal Enter behavior (adding a newline) for all other cases inside <pre>.
-                    // This return prevents other markdown rules from firing on Enter inside a code block.
                     return;
                 }
 
@@ -1277,13 +1371,18 @@ class DabirEditor {
                     let match;
                     const parentBlock = node.parentElement;
 
-                    if (parentBlock && parentBlock.parentElement === this.element) {
+                    const isTopLevelBlock = parentBlock && parentBlock.parentElement === this.element && parentBlock.tagName === 'DIV';
+                    const isRootTextNode = parentBlock === this.element && node.nodeType === Node.TEXT_NODE;
+
+                    if (isTopLevelBlock || isRootTextNode) {
+                        const elementToReplace = isTopLevelBlock ? parentBlock : node;
+
                         if ((match = text.match(/^(#{1,4}) ([^\n]+?)\s$/))) {
                             const level = match[1].length;
                             const content = match[2];
                             const newHeading = document.createElement(`h${level}`);
                             newHeading.textContent = content;
-                            this.element.replaceChild(newHeading, parentBlock);
+                            elementToReplace.replaceWith(newHeading);
                             this._moveCursorToEnd(newHeading, selection);
                             return;
                         } else if ((match = text.match(/^> ([^\n]*?)\s$/))) {
@@ -1296,7 +1395,7 @@ class DabirEditor {
                                 line.textContent = content;
                             }
                             newQuote.appendChild(line);
-                            this.element.replaceChild(newQuote, parentBlock);
+                            elementToReplace.replaceWith(newQuote);
                             this._moveCursorToEnd(line, selection);
                             return;
                         } else if ((match = text.match(/^(\d+)\.\s([^\n]*?)\s$/))) {
@@ -1313,7 +1412,7 @@ class DabirEditor {
                                 li.textContent = content;
                             }
                             ol.appendChild(li);
-                            this.element.replaceChild(ol, parentBlock);
+                            elementToReplace.replaceWith(ol);
                             this._moveCursorToEnd(li, selection);
                             return;
                         } else if ((match = text.match(/^([*-])\s([^\n]*?)\s$/))) {
@@ -1326,7 +1425,7 @@ class DabirEditor {
                                 li.textContent = content;
                             }
                             ul.appendChild(li);
-                            this.element.replaceChild(ul, parentBlock);
+                            elementToReplace.replaceWith(ul);
                             this._moveCursorToEnd(li, selection);
                             return;
                         }
