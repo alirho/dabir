@@ -67,6 +67,7 @@ class DabirEditor {
             case 'STRONG': return `**${text}**`;
             case 'EM':     return `*${text}*`;
             case 'DEL':    return `~~${text}~~`;
+            case 'MARK':   return `==${text}==`;
             case 'CODE':   return `\`${text}\``;
             case 'A':      return `[${text}](${el.getAttribute('href')})`;
             case 'H1':     return `# ${text}`;
@@ -96,6 +97,7 @@ class DabirEditor {
         escapedText = escapedText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         escapedText = escapedText.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
         escapedText = escapedText.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+        escapedText = escapedText.replace(/==([^=]+)==/g, '<mark>$1</mark>');
         escapedText = escapedText.replace(/`([^`]+)`/g, '<code>$1</code>');
         escapedText = escapedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
             return `<a href="${url.replace(/"/g, '&quot;')}" target="_blank">${linkText}</a>`;
@@ -162,6 +164,9 @@ class DabirEditor {
                 newNode.textContent = match[1];
             } else if ((match = text.match(/^~~([^~]+)~~$/))) {
                 newNode = document.createElement('del');
+                newNode.textContent = match[1];
+            } else if ((match = text.match(/^==([^=]+)==$/))) {
+                newNode = document.createElement('mark');
                 newNode.textContent = match[1];
             } else if ((match = text.match(/^`([^`]+)`$/))) {
                 newNode = document.createElement('code');
@@ -237,7 +242,7 @@ class DabirEditor {
     
     _scanAndRenderAllInlineMarkdown(textNode) {
         if (!textNode || textNode.nodeType !== Node.TEXT_NODE || !textNode.parentElement) return;
-        if (textNode.parentElement.closest('a, strong, em, del, code, pre, h1, h2, h3, h4')) return;
+        if (textNode.parentElement.closest('a, strong, em, del, code, mark, pre, h1, h2, h3, h4')) return;
 
         const text = textNode.textContent;
 
@@ -257,6 +262,10 @@ class DabirEditor {
             { 
                 regex: /~~([^~]+)~~/, 
                 createFn: (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; }
+            },
+            { 
+                regex: /==([^=]+)==/, 
+                createFn: (m) => { const mark = document.createElement('mark'); mark.textContent = m[1]; return mark; }
             },
             { 
                 regex: /`([^`]+)`/, 
@@ -424,6 +433,8 @@ class DabirEditor {
             } else if (replaceAndBreak(/\*([^*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) {
                 return true;
             } else if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; })) {
+                return true;
+            } else if (replaceAndBreak(/==([^=]+)==$/, (m) => { const mark = document.createElement('mark'); mark.textContent = m[1]; return mark; })) {
                 return true;
             }
         }
@@ -601,6 +612,7 @@ class DabirEditor {
                 .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*([^*]+)\*/g, '<em>$1</em>')
                 .replace(/~~([^~]+)~~/g, '<del>$1</del>')
+                .replace(/==([^=]+)==/g, '<mark>$1</mark>')
                 .replace(/`([^`]+)`/g, '<code>$1</code>');
         };
 
@@ -729,6 +741,7 @@ class DabirEditor {
                 case 'STRONG': return `**${childMarkdown}**`;
                 case 'EM': return `*${childMarkdown}*`;
                 case 'DEL': return `~~${childMarkdown}~~`;
+                case 'MARK': return `==${childMarkdown}==`;
                 case 'CODE': return node.closest('pre') ? childMarkdown : `\`${childMarkdown}\``;
                 case 'A': return `[${childMarkdown}](${node.href})`;
                 case 'BR': return '\n';
@@ -847,10 +860,10 @@ class DabirEditor {
             }
             
             if (newRange.isCollapsed && container.nodeType === Node.TEXT_NODE && this.element.contains(container)) {
-                if (!container.parentElement.closest('a, strong, em, del, code')) {
+                if (!container.parentElement.closest('a, strong, em, del, code, mark')) {
                     const text = container.textContent;
                     const offset = newRange.startOffset;
-                    const allPatternsRegex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(~~([^~]+)~~)|(`([^`]+)`)|(?!`|!\[[^\]]*\]\([^)]*\))\[([^\]]+)\]\(([^)]+)\)/g;
+                    const allPatternsRegex = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(~~([^~]+)~~)|(==([^=]+)==)|(`([^`]+)`)|(?!`|!\[[^\]]*\]\([^)]*\))\[([^\]]+)\]\(([^)]+)\)/g;
 
                     let match;
                     let cursorIsInAPattern = false;
@@ -878,7 +891,7 @@ class DabirEditor {
                 this._renderActiveNode();
             } else if (selection.isCollapsed && !this.activeRawNode) {
                 const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
-                const elementToReveal = parentElement.closest('strong, em, del, code, a, h1, h2, h3, h4, figure, blockquote');
+                const elementToReveal = parentElement.closest('strong, em, del, code, a, mark, h1, h2, h3, h4, figure, blockquote');
                 if (elementToReveal && !elementToReveal.closest('pre, table')) {
                     this.ignoreSelectionChange = true;
                     this._revealMarkdown(elementToReveal);
@@ -1509,6 +1522,12 @@ class DabirEditor {
                             const del = document.createElement('del');
                             del.textContent = m[1];
                             return del;
+                        });
+                    } else if ((match = text.match(/==([^=]+)==\s$/))) {
+                        this._replaceMarkdown(node, match, (m) => {
+                            const mark = document.createElement('mark');
+                            mark.textContent = m[1];
+                            return mark;
                         });
                     }
                 }
