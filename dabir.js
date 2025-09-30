@@ -1,4 +1,3 @@
-
 class DabirEditor {
     constructor(selector, options = {}) {
         this.element = document.querySelector(selector);
@@ -90,6 +89,21 @@ class DabirEditor {
         }
     }
 
+    _parseInlineMarkdown(text) {
+        if (!text) return '';
+        let escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        escapedText = escapedText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+        escapedText = escapedText.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+        escapedText = escapedText.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+        escapedText = escapedText.replace(/`([^`]+)`/g, '<code>$1</code>');
+        escapedText = escapedText.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
+            return `<a href="${url.replace(/"/g, '&quot;')}" target="_blank">${linkText}</a>`;
+        });
+        
+        return escapedText;
+    }
+
     _renderRawMarkdownNode(textNode, moveCursor = true) {
         if (!textNode || textNode.nodeType !== Node.TEXT_NODE || !textNode.parentElement) return null;
 
@@ -128,7 +142,7 @@ class DabirEditor {
                         const lineDiv = document.createElement('div');
                         const content = line.substring(2);
                         if (content) {
-                            lineDiv.textContent = content;
+                            lineDiv.innerHTML = this._parseInlineMarkdown(content);
                         } else {
                             lineDiv.appendChild(document.createElement('br'));
                         }
@@ -286,7 +300,8 @@ class DabirEditor {
     }
 
     _handleEnterKeyMarkdown(e, selection, parentElement) {
-        if (parentElement.parentElement !== this.element) {
+        const parentOfParent = parentElement.parentElement;
+        if (parentOfParent !== this.element && parentOfParent.tagName !== 'BLOCKQUOTE') {
             return false;
         }
         
@@ -328,7 +343,7 @@ class DabirEditor {
             if (content === '') {
                 line.appendChild(document.createElement('br'));
             } else {
-                line.textContent = content;
+                line.innerHTML = this._parseInlineMarkdown(content);
             }
             newQuote.appendChild(line);
             parentElement.replaceWith(newQuote);
@@ -1390,11 +1405,12 @@ class DabirEditor {
                     let match;
                     const parentBlock = node.parentElement;
 
+                    const isInsideBlockquote = parentBlock && parentBlock.parentElement.tagName === 'BLOCKQUOTE';
                     const isTopLevelBlock = parentBlock && parentBlock.parentElement === this.element && parentBlock.tagName === 'DIV';
                     const isRootTextNode = parentBlock === this.element && node.nodeType === Node.TEXT_NODE;
 
-                    if (isTopLevelBlock || isRootTextNode) {
-                        const elementToReplace = isTopLevelBlock ? parentBlock : node;
+                    if (isTopLevelBlock || isRootTextNode || isInsideBlockquote) {
+                        const elementToReplace = isRootTextNode ? node : parentBlock;
 
                         if (text.trim() === '---') {
                             const hr = document.createElement('hr');
@@ -1421,7 +1437,7 @@ class DabirEditor {
                             if (content === '') {
                                 line.appendChild(document.createElement('br'));
                             } else {
-                                line.textContent = content;
+                                line.innerHTML = this._parseInlineMarkdown(content);
                             }
                             newQuote.appendChild(line);
                             elementToReplace.replaceWith(newQuote);
