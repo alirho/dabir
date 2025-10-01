@@ -1141,36 +1141,103 @@ class DabirEditor {
             }
             
             const checklistItem = parentElement.closest('li.checklist-item');
-            if (e.key === 'Backspace' && selection.isCollapsed && checklistItem && checklistItem.textContent.trim() === '') {
-                if ((range.startContainer === checklistItem && range.startOffset <= 1) || (range.startContainer.parentElement === checklistItem && range.startOffset === 0)) {
-                    e.preventDefault();
-                    
-                    const parentList = checklistItem.parentElement;
-                    const previousItem = checklistItem.previousElementSibling;
+            if (e.key === 'Backspace' && selection.isCollapsed && checklistItem) {
+                const range = selection.getRangeAt(0);
+                const container = range.startContainer;
 
-                    if (previousItem) {
-                        checklistItem.remove();
-                        this._moveCursorToEnd(previousItem, selection);
-                    } else {
-                        const newPara = document.createElement('div');
-                        newPara.innerHTML = '<br>';
+                const atStart = (range.startContainer === checklistItem && range.startOffset <= 1) || 
+                                (range.startContainer.parentElement === checklistItem && range.startOffset === 0);
+
+                if (atStart) {
+                    const isEmpty = checklistItem.textContent.trim() === '';
+                    
+                    if (isEmpty) {
+                        e.preventDefault();
                         
-                        const parentLi = parentList.parentElement.closest('li');
-                        if(parentLi) {
-                            parentList.remove();
-                            this._moveCursorToEnd(parentLi, selection);
-                        } else {
-                            parentList.before(newPara);
-                             if (parentList.children.length === 1) {
-                                parentList.remove();
-                            }
+                        const parentList = checklistItem.parentElement;
+                        const previousItem = checklistItem.previousElementSibling;
+
+                        if (previousItem) {
                             checklistItem.remove();
+                            this._moveCursorToEnd(previousItem, selection);
+                        } else {
+                            const newPara = document.createElement('div');
+                            newPara.innerHTML = '<br>';
+                            
+                            const parentLi = parentList.parentElement.closest('li');
+                            if(parentLi) {
+                                parentList.remove();
+                                this._moveCursorToEnd(parentLi, selection);
+                            } else {
+                                parentList.before(newPara);
+                                 if (parentList.children.length === 1) {
+                                    parentList.remove();
+                                }
+                                checklistItem.remove();
+                                this._moveCursorToEnd(newPara, selection);
+                            }
+                        }
+                        
+                        this._saveContent();
+                        return;
+                    } else { // Not empty, but at the start
+                        const previousItem = checklistItem.previousElementSibling;
+                        const parentList = checklistItem.parentElement;
+                        const parentLi = parentList.parentElement.closest('li');
+                        
+                        if (!previousItem && !parentLi) {
+                            e.preventDefault();
+                            const textContent = checklistItem.textContent;
+                            const newPara = document.createElement('div');
+                            newPara.textContent = textContent;
+                            checklistItem.parentElement.replaceWith(newPara);
                             this._moveCursorToEnd(newPara, selection);
+                            this._saveContent();
+                            return;
+                        }
+
+                        // Only merge if previous sibling is also a list item.
+                        if (previousItem && previousItem.tagName === 'LI') {
+                            e.preventDefault();
+
+                            // Get text from current item
+                            const textToMerge = checklistItem.textContent.trim();
+
+                            // Get the last text node of the previous item.
+                            let previousTextNode = null;
+                            for (const child of Array.from(previousItem.childNodes).reverse()) {
+                                if (child.nodeType === Node.TEXT_NODE) {
+                                    previousTextNode = child;
+                                    break;
+                                }
+                            }
+
+                            if (!previousTextNode) {
+                                previousTextNode = document.createTextNode('');
+                                previousItem.appendChild(previousTextNode);
+                            }
+                            
+                            const br = previousItem.querySelector('br');
+                            if (br && previousItem.textContent.trim() === '') {
+                                br.remove();
+                            }
+
+                            const originalLength = previousTextNode.textContent.length;
+                            const prefix = originalLength > 0 ? ' ' : '';
+                            previousTextNode.textContent += prefix + textToMerge;
+                            
+                            checklistItem.remove();
+                            
+                            const newRange = document.createRange();
+                            newRange.setStart(previousTextNode, originalLength + prefix.length);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                            
+                            this._saveContent();
+                            return;
                         }
                     }
-                    
-                    this._saveContent();
-                    return;
                 }
             }
 
@@ -1535,9 +1602,37 @@ class DabirEditor {
                     }
                     if (listItemOnEnter.classList.contains('checklist-item')) {
                         e.preventDefault();
-                        const newLi = this._createChecklistItem('', false);
-                        listItemOnEnter.after(newLi);
-                        this._moveCursorToEnd(newLi, selection);
+                
+                        const range = selection.getRangeAt(0);
+                        const textNode = Array.from(listItemOnEnter.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+                
+                        if (textNode) {
+                            const contentAfterCursor = textNode.textContent.substring(range.startOffset);
+                            textNode.textContent = textNode.textContent.substring(0, range.startOffset);
+                            
+                            if (textNode.textContent.trim() === '') {
+                                textNode.remove();
+                                const br = listItemOnEnter.querySelector('br');
+                                if (!br) {
+                                    listItemOnEnter.appendChild(document.createElement('br'));
+                                }
+                            }
+                            
+                            const newLi = this._createChecklistItem(contentAfterCursor, false);
+                            listItemOnEnter.after(newLi);
+                            
+                            const newTextNode = Array.from(newLi.childNodes).find(n => n.nodeType === Node.TEXT_NODE);
+                            const newRange = document.createRange();
+                            newRange.setStart(newTextNode || newLi, 0);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        } else {
+                            const newLi = this._createChecklistItem('', false);
+                            listItemOnEnter.after(newLi);
+                            this._moveCursorToEnd(newLi, selection);
+                        }
+                
                         this._saveContent();
                         return;
                     }
@@ -1547,6 +1642,58 @@ class DabirEditor {
 
         this.element.addEventListener('keyup', (e) => {
             if (this.activeRawNode) return;
+
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                const selection = window.getSelection();
+                if (selection && selection.isCollapsed && selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const container = range.startContainer;
+        
+                    if (container.nodeType === Node.ELEMENT_NODE && container.classList.contains('checklist-item')) {
+                        const checklistItem = container;
+                        const newRange = document.createRange();
+                        const isMovingUp = (e.key === 'ArrowUp');
+
+                        let textNode = null;
+                        for (const child of checklistItem.childNodes) {
+                            if (child.nodeType === Node.TEXT_NODE) {
+                                textNode = child;
+                                break;
+                            }
+                        }
+
+                        if (isMovingUp) {
+                            // Goal: move to the end of the content
+                            if (textNode) {
+                                newRange.setStart(textNode, textNode.textContent.length);
+                            } else {
+                                // No text node, so just go to the end of the li
+                                newRange.selectNodeContents(checklistItem);
+                                newRange.collapse(false); // false = to the end
+                            }
+                        } else { // isMovingDown
+                            // Goal: move to the start of the content
+                            if (textNode) {
+                                newRange.setStart(textNode, 0);
+                            } else {
+                                // No text node, move to start of editable area (after checkbox)
+                                const br = checklistItem.querySelector('br');
+                                if (br) {
+                                    newRange.setStartBefore(br);
+                                } else {
+                                    // Fallback: position cursor after the checkbox (index 1)
+                                    const contentStartIndex = 1;
+                                    newRange.setStart(checklistItem, Math.min(contentStartIndex, checklistItem.childNodes.length));
+                                }
+                            }
+                        }
+        
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+            }
 
             if (e.key === ' ') {
                 const selection = window.getSelection();
