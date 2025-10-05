@@ -1,3 +1,4 @@
+
 class DabirEditor {
     constructor(selector, options = {}) {
         this.element = document.querySelector(selector);
@@ -1016,15 +1017,15 @@ class DabirEditor {
                     while ((match = allPatternsRegex.exec(text)) !== null) {
                         const startIndex = match.index;
                         const endIndex = match.index + match[0].length;
-                        if (offset >= startIndex && offset <= endIndex) {
+                        if (offset > startIndex && offset < endIndex) {
                             cursorIsInAPattern = true;
                             break;
                         }
                     }
 
                     if (!cursorIsInAPattern) {
+                        allPatternsRegex.lastIndex = 0;
                         const hasPattern = allPatternsRegex.test(text);
-                        allPatternsRegex.lastIndex = 0; 
                         if(hasPattern) {
                             this._scanAndRenderAllInlineMarkdown(container);
                         }
