@@ -387,6 +387,74 @@ class DabirEditor {
             }
         }
     
+        const textTrimmed = nodeToReplace.textContent.trim();
+        if (textTrimmed === '...') {
+            const contentNodes = [];
+            let startNode = null;
+            let currentScanNode = nodeToReplace.previousElementSibling;
+    
+        while (currentScanNode) {
+            const nodeText = currentScanNode.textContent.trim();
+            const admonitionStartRegex = /^\.\.\.(هشدار|توجه|نکته|مهم|احتیاط)$/;
+            if (nodeText.match(admonitionStartRegex)) {
+                startNode = currentScanNode;
+                break;
+            }
+    
+            if (currentScanNode.classList.contains('dabir-admonition') || 
+                ['H1','H2','H3','H4','PRE','TABLE','BLOCKQUOTE','HR'].includes(currentScanNode.tagName)) {
+                break;
+            }
+            
+            contentNodes.push(currentScanNode);
+            currentScanNode = currentScanNode.previousElementSibling;
+        }
+
+        if (startNode) {
+            e.preventDefault();
+            
+            const match = startNode.textContent.trim().match(/^\.\.\.(.+)$/);
+            const type = match[1];
+            let typeClass = '';
+            switch (type) {
+                case 'هشدار': typeClass = 'warning'; break;
+                case 'توجه': typeClass = 'note'; break;
+                case 'نکته': typeClass = 'tip'; break;
+                case 'مهم': typeClass = 'important'; break;
+                case 'احتیاط': typeClass = 'caution'; break;
+            }
+
+            const newAdmonition = document.createElement('div');
+            newAdmonition.className = `dabir-admonition dabir-admonition--${typeClass}`;
+            newAdmonition.dataset.admonitionType = type;
+            
+            const titleEl = document.createElement('p');
+            titleEl.className = 'dabir-admonition-title';
+            titleEl.textContent = type;
+            newAdmonition.appendChild(titleEl);
+
+            contentNodes.reverse();
+            const contentMarkdown = contentNodes.map(node => this._convertNodeToMarkdown(node).trim()).join('\n');
+            const contentHtml = this._markdownToHtml(contentMarkdown);
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = contentHtml.trim() || '<div><br></div>';
+            
+            Array.from(tempDiv.childNodes).forEach(child => newAdmonition.appendChild(child));
+            
+            startNode.replaceWith(newAdmonition);
+            contentNodes.forEach(node => node.remove());
+            nodeToReplace.remove();
+
+            const newPara = document.createElement('div');
+            newPara.innerHTML = '<br>';
+            newAdmonition.after(newPara);
+            this._moveCursorToEnd(newPara, selection);
+            
+            this._saveContent();
+            return true;
+        }
+    }
         const text = nodeToReplace.textContent;
         let match;
     
@@ -845,6 +913,127 @@ class DabirEditor {
         return html;
     }
 
+    _convertNodeToMarkdown(node, listState = {}, topLevelContainer = null) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return node.textContent;
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return '';
+        }
+
+        if (node.classList.contains('dabir-admonition')) {
+            const type = node.dataset.admonitionType;
+            const titleNode = node.querySelector('.dabir-admonition-title');
+            
+            const contentNodes = Array.from(node.childNodes).filter(n => n !== titleNode);
+            const innerContainer = document.createElement('div');
+            contentNodes.forEach(n => innerContainer.appendChild(n.cloneNode(true)));
+            
+            let innerMarkdown = Array.from(innerContainer.childNodes).map(child => this._convertNodeToMarkdown(child, listState, topLevelContainer)).join('');
+    
+            return `\n...${type}\n${innerMarkdown.trim()}\n...\n\n`;
+        }
+
+        let childMarkdown = Array.from(node.childNodes)
+                                .map(child => this._convertNodeToMarkdown(child, listState, topLevelContainer))
+                                .join('');
+        
+        switch (node.tagName) {
+            case 'HR': return '\n---\n\n';
+            case 'H1': return `# ${childMarkdown}\n\n`;
+            case 'H2': return `## ${childMarkdown}\n\n`;
+            case 'H3': return `### ${childMarkdown}\n\n`;
+            case 'H4': return `#### ${childMarkdown}\n\n`;
+            case 'STRONG': return `**${childMarkdown}**`;
+            case 'EM': return `*${childMarkdown}*`;
+            case 'DEL': return `~~${childMarkdown}~~`;
+            case 'MARK': return `==${childMarkdown}==`;
+            case 'CODE': return node.closest('pre') ? childMarkdown : `\`${childMarkdown}\``;
+            case 'A': return `[${childMarkdown}](${node.href})`;
+            case 'BR': return '\n';
+            case 'P': return `${childMarkdown}\n\n`;
+            case 'DIV': 
+                return `${childMarkdown}${ (topLevelContainer && node.parentElement === topLevelContainer) ? '\n\n' : '\n'}`;
+            case 'FIGURE': {
+                const img = node.querySelector('img');
+                const figcaption = node.querySelector('figcaption');
+                const alt = figcaption ? figcaption.textContent : (img ? img.alt : '');
+                const src = img ? img.src : '';
+                return `![${alt}](${src})\n\n`;
+            }
+            case 'BLOCKQUOTE': {
+                const lines = childMarkdown.trim().split('\n');
+                return lines.map(line => `> ${line}`).join('\n') + '\n\n';
+            }
+            case 'PRE': {
+                const codeNode = node.querySelector('code');
+                const langMatch = codeNode ? codeNode.className.match(/language-(\w+)/) : null;
+                const lang = langMatch ? langMatch[1] : '';
+                const code = codeNode ? codeNode.innerText : node.innerText;
+                return `\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
+            }
+            case 'TABLE': {
+                let tableMd = '';
+                const headRows = Array.from(node.querySelectorAll('thead tr'));
+                const bodyRows = Array.from(node.querySelectorAll('tbody tr'));
+                const colCount = headRows.length > 0 ? headRows[0].cells.length : (bodyRows.length > 0 ? bodyRows[0].cells.length : 0);
+
+                if (colCount > 0 && headRows.length > 0) {
+                    const headers = Array.from(headRows[0].cells).map(cell => cell.textContent.trim());
+                    tableMd += `| ${headers.join(' | ')} |\n`;
+                    const alignments = JSON.parse(node.dataset.alignments || '[]');
+                    const separator = Array.from({ length: colCount }).map((_, i) => {
+                        const align = alignments[i] || '';
+                        if (align === 'center') return ':---:';
+                        if (align === 'right') return '---:';
+                        if (align === 'left') return ':---';
+                        return '---';
+                    });
+                    tableMd += `| ${separator.join(' | ')} |\n`;
+                }
+
+                bodyRows.forEach(row => {
+                    const cells = Array.from(row.cells).map(cell => cell.textContent.trim());
+                    tableMd += `| ${cells.join(' | ')} |\n`;
+                });
+                return tableMd ? tableMd + '\n' : '';
+            }
+            case 'UL':
+            case 'OL': {
+                const level = (listState.level || 0) + 1;
+                let counter = node.tagName === 'OL' ? (parseInt(node.getAttribute('start'), 10) || 1) : 0;
+                return Array.from(node.children).map(li => {
+                    const md = this._convertNodeToMarkdown(li, { type: node.tagName, level, counter }, topLevelContainer);
+                    if (counter > 0) counter++;
+                    return md;
+                }).join('');
+            }
+            case 'LI': {
+                const indent = '    '.repeat((listState.level || 1) - 1);
+                let prefix;
+                if (node.classList.contains('checklist-item')) {
+                    const isChecked = node.classList.contains('checked');
+                    prefix = `${indent}- [${isChecked ? 'x' : ' '}] `;
+                } else if (listState.type === 'OL') {
+                    prefix = `${indent}${listState.counter}. `;
+                } else {
+                    prefix = `${indent}- `;
+                }
+                let content = '', nestedListContent = '';
+                node.childNodes.forEach(child => {
+                    if (child.nodeName === 'UL' || child.nodeName === 'OL') {
+                        nestedListContent += this._convertNodeToMarkdown(child, listState, topLevelContainer);
+                    } else {
+                        content += this._convertNodeToMarkdown(child, listState, topLevelContainer);
+                    }
+                });
+                return `${prefix}${content.trim()}\n${nestedListContent}`;
+            }
+            default: return childMarkdown;
+        }
+    }
+
     _getMarkdownFromSelection() {
         const selection = window.getSelection();
         if (!selection.rangeCount) return '';
@@ -852,129 +1041,8 @@ class DabirEditor {
         const range = selection.getRangeAt(0);
         const container = document.createElement('div');
         container.appendChild(range.cloneContents());
-
-        function convertNode(node, listState = {}) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                return node.textContent;
-            }
-
-            if (node.nodeType !== Node.ELEMENT_NODE) {
-                return '';
-            }
-
-            if (node.classList.contains('dabir-admonition')) {
-                const type = node.dataset.admonitionType;
-                const titleNode = node.querySelector('.dabir-admonition-title');
-                
-                const contentNodes = Array.from(node.childNodes).filter(n => n !== titleNode);
-                const innerContainer = document.createElement('div');
-                contentNodes.forEach(n => innerContainer.appendChild(n.cloneNode(true)));
-                
-                let innerMarkdown = Array.from(innerContainer.childNodes).map(child => convertNode(child, listState)).join('');
         
-                return `\n...${type}\n${innerMarkdown.trim()}\n...\n\n`;
-            }
-
-            let childMarkdown = Array.from(node.childNodes)
-                                    .map(child => convertNode(child, listState))
-                                    .join('');
-            
-            switch (node.tagName) {
-                case 'HR': return '\n---\n\n';
-                case 'H1': return `# ${childMarkdown}\n\n`;
-                case 'H2': return `## ${childMarkdown}\n\n`;
-                case 'H3': return `### ${childMarkdown}\n\n`;
-                case 'H4': return `#### ${childMarkdown}\n\n`;
-                case 'STRONG': return `**${childMarkdown}**`;
-                case 'EM': return `*${childMarkdown}*`;
-                case 'DEL': return `~~${childMarkdown}~~`;
-                case 'MARK': return `==${childMarkdown}==`;
-                case 'CODE': return node.closest('pre') ? childMarkdown : `\`${childMarkdown}\``;
-                case 'A': return `[${childMarkdown}](${node.href})`;
-                case 'BR': return '\n';
-                case 'P': return `${childMarkdown}\n\n`;
-                case 'DIV': 
-                    return `${childMarkdown}${node.parentElement === container ? '\n\n' : '\n'}`;
-                case 'FIGURE': {
-                    const img = node.querySelector('img');
-                    const figcaption = node.querySelector('figcaption');
-                    const alt = figcaption ? figcaption.textContent : (img ? img.alt : '');
-                    const src = img ? img.src : '';
-                    return `![${alt}](${src})\n\n`;
-                }
-                case 'BLOCKQUOTE': {
-                    const lines = childMarkdown.trim().split('\n');
-                    return lines.map(line => `> ${line}`).join('\n') + '\n\n';
-                }
-                case 'PRE': {
-                    const codeNode = node.querySelector('code');
-                    const langMatch = codeNode ? codeNode.className.match(/language-(\w+)/) : null;
-                    const lang = langMatch ? langMatch[1] : '';
-                    const code = codeNode ? codeNode.innerText : node.innerText;
-                    return `\`\`\`${lang}\n${code}\n\`\`\`\n\n`;
-                }
-                case 'TABLE': {
-                    let tableMd = '';
-                    const headRows = Array.from(node.querySelectorAll('thead tr'));
-                    const bodyRows = Array.from(node.querySelectorAll('tbody tr'));
-                    const colCount = headRows.length > 0 ? headRows[0].cells.length : (bodyRows.length > 0 ? bodyRows[0].cells.length : 0);
-
-                    if (colCount > 0 && headRows.length > 0) {
-                        const headers = Array.from(headRows[0].cells).map(cell => cell.textContent.trim());
-                        tableMd += `| ${headers.join(' | ')} |\n`;
-                        const alignments = JSON.parse(node.dataset.alignments || '[]');
-                        const separator = Array.from({ length: colCount }).map((_, i) => {
-                            const align = alignments[i] || '';
-                            if (align === 'center') return ':---:';
-                            if (align === 'right') return '---:';
-                            if (align === 'left') return ':---';
-                            return '---';
-                        });
-                        tableMd += `| ${separator.join(' | ')} |\n`;
-                    }
-
-                    bodyRows.forEach(row => {
-                        const cells = Array.from(row.cells).map(cell => cell.textContent.trim());
-                        tableMd += `| ${cells.join(' | ')} |\n`;
-                    });
-                    return tableMd ? tableMd + '\n' : '';
-                }
-                case 'UL':
-                case 'OL': {
-                    const level = (listState.level || 0) + 1;
-                    let counter = node.tagName === 'OL' ? (parseInt(node.getAttribute('start'), 10) || 1) : 0;
-                    return Array.from(node.children).map(li => {
-                        const md = convertNode(li, { type: node.tagName, level, counter });
-                        if (counter > 0) counter++;
-                        return md;
-                    }).join('');
-                }
-                case 'LI': {
-                    const indent = '    '.repeat((listState.level || 1) - 1);
-                    let prefix;
-                    if (node.classList.contains('checklist-item')) {
-                        const isChecked = node.classList.contains('checked');
-                        prefix = `${indent}- [${isChecked ? 'x' : ' '}] `;
-                    } else if (listState.type === 'OL') {
-                        prefix = `${indent}${listState.counter}. `;
-                    } else {
-                        prefix = `${indent}- `;
-                    }
-                    let content = '', nestedListContent = '';
-                    node.childNodes.forEach(child => {
-                        if (child.nodeName === 'UL' || child.nodeName === 'OL') {
-                            nestedListContent += convertNode(child, listState);
-                        } else {
-                            content += convertNode(child, listState);
-                        }
-                    });
-                    return `${prefix}${content.trim()}\n${nestedListContent}`;
-                }
-                default: return childMarkdown;
-            }
-        }
-
-        let markdown = convertNode(container);
+        let markdown = this._convertNodeToMarkdown(container, {}, container);
         markdown = markdown.split('\n').map(line => line.trimEnd()).join('\n');
         return markdown.trim();
     }
@@ -1014,6 +1082,7 @@ class DabirEditor {
 
                     let match;
                     let cursorIsInAPattern = false;
+                    allPatternsRegex.lastIndex = 0; 
                     while ((match = allPatternsRegex.exec(text)) !== null) {
                         const startIndex = match.index;
                         const endIndex = match.index + match[0].length;
@@ -1025,8 +1094,7 @@ class DabirEditor {
 
                     if (!cursorIsInAPattern) {
                         allPatternsRegex.lastIndex = 0;
-                        const hasPattern = allPatternsRegex.test(text);
-                        if(hasPattern) {
+                        if(allPatternsRegex.test(text)) {
                             this._scanAndRenderAllInlineMarkdown(container);
                         }
                     }
