@@ -1016,7 +1016,7 @@ class DabirEditor {
                     while ((match = allPatternsRegex.exec(text)) !== null) {
                         const startIndex = match.index;
                         const endIndex = match.index + match[0].length;
-                        if (offset > startIndex && offset < endIndex) {
+                        if (offset >= startIndex && offset <= endIndex) {
                             cursorIsInAPattern = true;
                             break;
                         }
