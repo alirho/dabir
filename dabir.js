@@ -112,7 +112,7 @@ class DabirEditor {
 
     _parseInlineMarkdown(text) {
         if (!text) return '';
-        let escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        let escapedText = text;
 
         escapedText = escapedText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
         escapedText = escapedText.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
@@ -140,7 +140,7 @@ class DabirEditor {
             if ((match = text.match(/^(#{1,4}) ([^\n]+?)$/))) {
                 const level = match[1].length;
                 newNode = document.createElement(`h${level}`);
-                newNode.textContent = match[2];
+                newNode.innerHTML = this._parseInlineMarkdown(match[2]);
                 isBlock = true;
             } else if ((match = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/))) {
                 const altText = match[1];
@@ -221,22 +221,22 @@ class DabirEditor {
         if (!isBlock) {
             if ((match = text.match(/^\*\*([^*]+)\*\*$/))) {
                 newNode = document.createElement('strong');
-                newNode.textContent = match[1];
+                newNode.innerHTML = this._parseInlineMarkdown(match[1]);
             } else if ((match = text.match(/^\*([^*]+)\*$/))) {
                 newNode = document.createElement('em');
-                newNode.textContent = match[1];
+                newNode.innerHTML = this._parseInlineMarkdown(match[1]);
             } else if ((match = text.match(/^~~([^~]+)~~$/))) {
                 newNode = document.createElement('del');
-                newNode.textContent = match[1];
+                newNode.innerHTML = this._parseInlineMarkdown(match[1]);
             } else if ((match = text.match(/^==([^=]+)==$/))) {
                 newNode = document.createElement('mark');
-                newNode.textContent = match[1];
+                newNode.innerHTML = this._parseInlineMarkdown(match[1]);
             } else if ((match = text.match(/^`([^`]+)`$/))) {
                 newNode = document.createElement('code');
                 newNode.textContent = match[1];
             } else if ((match = text.match(/^\[([^\]]+)\]\(([^)]+)\)$/))) {
                 newNode = document.createElement('a');
-                newNode.textContent = match[1];
+                newNode.innerHTML = this._parseInlineMarkdown(match[1]);
                 newNode.href = match[2];
                 newNode.target = '_blank';
             }
@@ -269,8 +269,16 @@ class DabirEditor {
         if (this.activeRawNode) {
             this._renderActiveNode();
         }
-
-        const rawText = this._elementToRawMarkdown(element);
+    
+        const markdownEquivalentTags = ['STRONG', 'EM', 'DEL', 'MARK', 'CODE', 'A', 'H1', 'H2', 'H3', 'H4', 'FIGURE', 'BLOCKQUOTE'];
+        let rawText;
+    
+        if (markdownEquivalentTags.includes(element.tagName) || element.classList.contains('dabir-admonition')) {
+            rawText = this._elementToRawMarkdown(element);
+        } else {
+            rawText = element.outerHTML;
+        }
+        
         const textNode = document.createTextNode(rawText);
         
         const isBlock = ['H1', 'H2', 'H3', 'H4', 'FIGURE'].includes(element.tagName);
@@ -282,7 +290,7 @@ class DabirEditor {
             element.replaceWith(textNode);
         }
         this.activeRawNode = textNode;
-
+    
         const selection = window.getSelection();
         const range = document.createRange();
         range.selectNodeContents(textNode);
@@ -305,69 +313,31 @@ class DabirEditor {
     
     _scanAndRenderAllInlineMarkdown(textNode) {
         if (!textNode || textNode.nodeType !== Node.TEXT_NODE || !textNode.parentElement) return;
-        if (textNode.parentElement.closest('a, strong, em, del, code, mark, pre, h1, h2, h3, h4')) return;
+        
+        const parent = textNode.parentElement;
+        // Only block inside code blocks. Allow re-parsing inside strong, em, etc. to fix raw HTML.
+        if (parent.closest('code, pre')) return;
 
         const text = textNode.textContent;
+        const renderedHtml = this._parseInlineMarkdown(text);
 
-        const patterns = [
-            { 
-                regex: /(?<!`|!\[[^\]]*\]\([^)]*\))\[([^\]]+)\]\(([^)]+)\)/, 
-                createFn: (m) => { const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a; }
-            },
-            { 
-                regex: /\*\*([^\*]+)\*\*/, 
-                createFn: (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; }
-            },
-            { 
-                regex: /(?<!\*)\*([^\*]+)\*(?!\*)/, 
-                createFn: (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; }
-            },
-            { 
-                regex: /~~([^~]+)~~/, 
-                createFn: (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; }
-            },
-            { 
-                regex: /==([^=]+)==/, 
-                createFn: (m) => { const mark = document.createElement('mark'); mark.textContent = m[1]; return mark; }
-            },
-            { 
-                regex: /`([^`]+)`/, 
-                createFn: (m) => { const code = document.createElement('code'); code.textContent = m[1]; return code; }
-            },
-        ];
-
-        for (const { regex, createFn } of patterns) {
-            const match = text.match(regex);
-            if (match) {
-                const newElement = createFn(match);
-                const selection = window.getSelection();
-                const currentRange = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
-
-                const range = document.createRange();
-                range.setStart(textNode, match.index);
-                range.setEnd(textNode, match.index + match[0].length);
-                range.deleteContents();
-                range.insertNode(newElement);
-
-                if (currentRange && currentRange.startContainer === textNode) {
-                    const offset = currentRange.startOffset;
-                    if (offset > match.index) {
-                        const newOffset = offset - match[0].length + 1;
-                        const newRange = document.createRange();
-                        newRange.setStart(newElement.firstChild || newElement, Math.max(0, newOffset));
-                        newRange.collapse(true);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
-                    }
-                }
-
-                this._scanAndRenderAllInlineMarkdown(textNode);
-                if (newElement.nextSibling && newElement.nextSibling.nodeType === Node.TEXT_NODE) {
-                    this._scanAndRenderAllInlineMarkdown(newElement.nextSibling);
-                }
-                
+        // Re-render if markdown was converted, OR if the text contains HTML tags that need rendering.
+        // The check for renderedHtml !== text handles markdown.
+        // The regex handles raw HTML that _parseInlineMarkdown doesn't change.
+        if (renderedHtml !== text || /<[a-z][\s\S]*>/i.test(text)) {
+            // Use a fragment to avoid affecting the parent element directly until the end.
+            const fragment = document.createRange().createContextualFragment(renderedHtml);
+            
+            // This check is a safeguard. If parsing the HTML results in the exact same text
+            // (e.g., for "a < b"), don't do anything to avoid potential infinite loops.
+            if (fragment.textContent === text && fragment.childNodes.length === 1 && fragment.firstChild.nodeType === Node.TEXT_NODE) {
                 return;
             }
+            
+            parent.insertBefore(fragment, textNode);
+            parent.removeChild(textNode);
+            
+            this._saveContent();
         }
     }
 
@@ -506,7 +476,7 @@ class DabirEditor {
             const level = match[1].length;
             const content = match[2];
             const newHeading = document.createElement(`h${level}`);
-            newHeading.textContent = content;
+            newHeading.innerHTML = this._parseInlineMarkdown(content);
             nodeToReplace.replaceWith(newHeading);
             
             const newPara = document.createElement('div');
@@ -545,7 +515,7 @@ class DabirEditor {
             if (startNum > 1) {
                 ol.setAttribute('start', startNum);
             }
-            li.textContent = content || '';
+            li.innerHTML = this._parseInlineMarkdown(content) || '';
             ol.appendChild(li);
             nodeToReplace.replaceWith(ol);
             this._moveCursorToEnd(li, selection);
@@ -557,7 +527,7 @@ class DabirEditor {
             const content = match[2];
             const ul = document.createElement('ul');
             const li = document.createElement('li');
-            li.textContent = content || '';
+            li.innerHTML = this._parseInlineMarkdown(content) || '';
             ul.appendChild(li);
             nodeToReplace.replaceWith(ul);
             this._moveCursorToEnd(li, selection);
@@ -597,16 +567,16 @@ class DabirEditor {
                 if (matchIndex === -1 || fullText.charAt(matchIndex - 1) === '!') {
                     return null;
                 }
-                const a = document.createElement('a'); a.href = m[2]; a.textContent = m[1]; a.target = '_blank'; return a;
+                const a = document.createElement('a'); a.href = m[2]; a.innerHTML = this._parseInlineMarkdown(m[1]); a.target = '_blank'; return a;
             })) {
                 return true;
-            } else if (replaceAndBreak(/\*\*([^*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.textContent = m[1]; return strong; })) {
+            } else if (replaceAndBreak(/\*\*([^*]+)\*\*$/, (m) => { const strong = document.createElement('strong'); strong.innerHTML = this._parseInlineMarkdown(m[1]); return strong; })) {
                 return true;
-            } else if (replaceAndBreak(/\*([^*]+)\*$/, (m) => { const em = document.createElement('em'); em.textContent = m[1]; return em; })) {
+            } else if (replaceAndBreak(/\*([^*]+)\*$/, (m) => { const em = document.createElement('em'); em.innerHTML = this._parseInlineMarkdown(m[1]); return em; })) {
                 return true;
-            } else if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.textContent = m[1]; return del; })) {
+            } else if (replaceAndBreak(/~~([^~]+)~~$/, (m) => { const del = document.createElement('del'); del.innerHTML = this._parseInlineMarkdown(m[1]); return del; })) {
                 return true;
-            } else if (replaceAndBreak(/==([^=]+)==$/, (m) => { const mark = document.createElement('mark'); mark.textContent = m[1]; return mark; })) {
+            } else if (replaceAndBreak(/==([^=]+)==$/, (m) => { const mark = document.createElement('mark'); mark.innerHTML = this._parseInlineMarkdown(m[1]); return mark; })) {
                 return true;
             }
         }
@@ -771,7 +741,7 @@ class DabirEditor {
         let currentParagraphLines = [];
 
         const parseInline = (text) => {
-            let escapedText = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            let escapedText = text;
             
             escapedText = escapedText.replace(/(!?)\[([^\]]+)\]\(([^)]+)\)/g, (match, prefix, linkText, url) => {
                 if (prefix === '!') {
@@ -1105,7 +1075,7 @@ class DabirEditor {
                 this._renderActiveNode();
             } else if (selection.isCollapsed && !this.activeRawNode) {
                 const parentElement = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
-                const elementToReveal = parentElement.closest('strong, em, del, code, a, mark, h1, h2, h3, h4, figure');
+                const elementToReveal = parentElement.closest('strong, em, del, code, a, mark, h1, h2, h3, h4, figure, u, i, b, s, sub, sup');
 
                 if (elementToReveal && !elementToReveal.closest('pre, table, blockquote, .dabir-admonition')) {
                     this.ignoreSelectionChange = true;
@@ -1879,7 +1849,7 @@ class DabirEditor {
                             const level = match[1].length;
                             const content = match[2].trim();
                             const newHeading = document.createElement(`h${level}`);
-                            newHeading.textContent = content;
+                            newHeading.innerHTML = this._parseInlineMarkdown(content);
                             elementToReplace.replaceWith(newHeading);
                             this._moveCursorToEnd(newHeading, selection);
                             return;
@@ -1907,7 +1877,7 @@ class DabirEditor {
                             if (content === '') {
                                 li.appendChild(document.createElement('br'));
                             } else {
-                                li.textContent = content;
+                                li.innerHTML = this._parseInlineMarkdown(content);
                             }
                             ol.appendChild(li);
                             elementToReplace.replaceWith(ol);
@@ -1920,7 +1890,7 @@ class DabirEditor {
                             if (content === '') {
                                 li.appendChild(document.createElement('br'));
                             } else {
-                                li.textContent = content;
+                                li.innerHTML = this._parseInlineMarkdown(content);
                             }
                             ul.appendChild(li);
                             elementToReplace.replaceWith(ul);
@@ -1940,7 +1910,7 @@ class DabirEditor {
                             this._replaceMarkdown(node, match, (m) => {
                                 const a = document.createElement('a');
                                 a.href = m[2];
-                                a.textContent = m[1];
+                                a.innerHTML = this._parseInlineMarkdown(m[1]);
                                 a.target = '_blank';
                                 return a;
                             });
@@ -1948,25 +1918,25 @@ class DabirEditor {
                     } else if ((match = text.match(/\*\*([^*]+)\*\*\s$/))) {
                         this._replaceMarkdown(node, match, (m) => {
                             const strong = document.createElement('strong');
-                            strong.textContent = m[1];
+                            strong.innerHTML = this._parseInlineMarkdown(m[1]);
                             return strong;
                         });
                     } else if ((match = text.match(/\*([^*]+)\*\s$/))) {
                         this._replaceMarkdown(node, match, (m) => {
                             const em = document.createElement('em');
-                            em.textContent = m[1];
+                            em.innerHTML = this._parseInlineMarkdown(m[1]);
                             return em;
                         });
                     } else if ((match = text.match(/~~([^~]+)~~\s$/))) {
                         this._replaceMarkdown(node, match, (m) => {
                             const del = document.createElement('del');
-                            del.textContent = m[1];
+                            del.innerHTML = this._parseInlineMarkdown(m[1]);
                             return del;
                         });
                     } else if ((match = text.match(/==([^=]+)==\s$/))) {
                         this._replaceMarkdown(node, match, (m) => {
                             const mark = document.createElement('mark');
-                            mark.textContent = m[1];
+                            mark.innerHTML = this._parseInlineMarkdown(m[1]);
                             return mark;
                         });
                     }
