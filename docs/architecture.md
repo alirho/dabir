@@ -8,28 +8,28 @@
 
 ```mermaid
 graph TD
-    A[کاربر (ورودی)] --> B{Handlers};
-    B -- رویدادهای خام --> C[DabirEditor Core];
-    C -- دستورات --> D{Parsers};
-    C -- دستورات --> E{Renderer};
-    C <--> F[Selection];
-    C <--> G[Storage];
-    C <--> H{EventEmitter};
+    A["کاربر (ورودی)"] --> B["Handlers"];
+    B -- "رویدادهای خام" --> C["DabirEditor Core"];
+    C -- "دستورات" --> D["Parsers"];
+    C -- "دستورات" --> E["Renderer"];
+    C <--> F["Selection"];
+    C <--> G["Storage"];
+    C <--> H["EventEmitter"];
     
-    D -- HTML --> E;
-    E -- به‌روزرسانی DOM --> I[عنصر DOM];
-    I -- بازخورد بصری --> A;
+    D -- "HTML" --> E;
+    E -- "به‌روزرسانی DOM" --> I["عنصر DOM"];
+    I -- "بازخورد بصری" --> A;
 
-    J{Plugins} <--> C;
+    J["Plugins"] <--> C;
 
-    subgraph "ماژول‌های اصلی"
+    subgraph CoreModules["ماژول‌های اصلی"]
         C
         F
         G
         H
     end
 
-    subgraph "پردازش ورودی/خروجی"
+    subgraph IOProcessing["پردازش ورودی/خروجی"]
         B
         D
         E
