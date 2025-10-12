@@ -201,22 +201,60 @@ export class KeyboardHandler {
     }
 
     _tryToParseInline(block) {
-        const textContent = block.textContent;
-        if (!textContent || !/(\*\*|\*|~~|==|`|\[)/.test(textContent)) {
+        const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        const nodesToProcess = [];
+    
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (node.parentElement.closest('code, pre, a, strong, em, del, mark')) {
+                continue;
+            }
+            if (/(?:\*\*|\*|~~|==|`|\[)/.test(node.textContent)) {
+                nodesToProcess.push(node);
+            }
+        }
+    
+        if (nodesToProcess.length === 0) {
             return false;
         }
     
-        const newHtml = parseInline(textContent);
+        requestAnimationFrame(() => {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
     
-        if (newHtml !== block.innerHTML) {
-            requestAnimationFrame(() => {
-                block.innerHTML = newHtml;
-                moveCursorToEnd(block);
-                this.editor.saveContent();
+            const range = selection.getRangeAt(0).cloneRange();
+            const cursorMarker = document.createElement('span');
+            range.insertNode(cursorMarker);
+            
+            let somethingChanged = false;
+    
+            nodesToProcess.forEach(node => {
+                if (!node.isConnected) return;
+                const text = node.textContent;
+                const newHtml = parseInline(text);
+    
+                if (newHtml !== text) {
+                    const fragment = document.createRange().createContextualFragment(newHtml);
+                    node.replaceWith(fragment);
+                    somethingChanged = true;
+                }
             });
-            return true;
-        }
     
-        return false;
+            // Restore cursor position and clean up
+            if (block.contains(cursorMarker)) {
+                const newRange = document.createRange();
+                newRange.setStartBefore(cursorMarker);
+                newRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(newRange);
+            }
+            cursorMarker.remove();
+    
+            if (somethingChanged) {
+                this.editor.saveContent();
+            }
+        });
+    
+        return true;
     }
 }
