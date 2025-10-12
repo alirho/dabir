@@ -32,6 +32,13 @@ export class KeyboardHandler {
     }
 
     handleKeyDown(event) {
+        if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            if (this.handleEnter(event)) {
+                event.preventDefault();
+                return;
+            }
+        }
+
         const modifiers = [];
         if (event.ctrlKey) modifiers.push('ctrl');
         if (event.metaKey) modifiers.push('meta');
@@ -48,6 +55,45 @@ export class KeyboardHandler {
                 }
             }
         }
+    }
+
+    handleEnter(event) {
+        const { selection } = this.editor;
+        const parentElement = selection.parentElement;
+        if (!parentElement) return false;
+    
+        const container = parentElement.closest('blockquote, .dabir-admonition');
+        if (container) {
+            const currentLine = parentElement.closest('div, p');
+            
+            if (!currentLine || currentLine.classList.contains('dabir-admonition-title') || currentLine.parentElement !== container) {
+                return false;
+            }
+    
+            const isLineEmpty = currentLine.textContent.trim() === '';
+            
+            if (isLineEmpty) {
+                const contentChildren = Array.from(container.children).filter(el => 
+                    !el.classList.contains('dabir-admonition-title')
+                );
+                
+                const newBlock = document.createElement('div');
+                newBlock.innerHTML = '<br>';
+    
+                if (contentChildren.length === 1 && contentChildren[0] === currentLine) {
+                    container.replaceWith(newBlock);
+                } else {
+                    container.after(newBlock);
+                    currentLine.remove();
+                }
+                
+                moveCursorToEnd(newBlock);
+                this.editor.saveContent();
+                return true;
+            }
+        }
+    
+        return false;
     }
 
     handleKeyUp(event) {
@@ -142,7 +188,7 @@ export class KeyboardHandler {
                     this.editor.renderer.replace(block, newElement);
                     
                     if (triggerKey === ' ') {
-                        const focusElement = newElement.querySelector('li') || newElement;
+                        const focusElement = newElement.querySelector('div') || newElement.querySelector('li') || newElement;
                         moveCursorToEnd(focusElement);
                     }
                     
