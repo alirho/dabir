@@ -1,6 +1,6 @@
 # دبیر (Dabir)
 
-![دبیر](https://img.shields.io/badge/Dabir-v1.5.0-blue)
+![دبیر](https://img.shields.io/badge/Dabir-v1.6.0-blue)
 ![زبان](https://img.shields.io/badge/Language-Persian-green)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
