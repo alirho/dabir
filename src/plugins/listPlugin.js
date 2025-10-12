@@ -1,4 +1,3 @@
-
 import Plugin from './plugin.js';
 import { moveCursorToEnd } from '../utils/dom.js';
 
@@ -9,6 +8,7 @@ export class ListPlugin extends Plugin {
     static install(editor) {
         editor.keyboardHandler.register('Tab', [], (e) => this.handleTab(e, editor));
         editor.keyboardHandler.register('Tab', ['Shift'], (e) => this.handleShiftTab(e, editor));
+        return { name: 'ListPlugin', handleShiftTab: this.handleShiftTab };
     }
 
     static handleTab(event, editor) {
@@ -20,10 +20,16 @@ export class ListPlugin extends Plugin {
             let sublist = prevLi.querySelector('ul, ol');
             if (!sublist) {
                 sublist = document.createElement(listItem.parentElement.tagName);
+                if (listItem.classList.contains('checklist-item')) {
+                    sublist.classList.add('checklist');
+                }
                 prevLi.appendChild(sublist);
             }
             sublist.appendChild(listItem);
-            moveCursorToEnd(listItem);
+
+            const focusableElement = listItem.querySelector('span') || listItem;
+            moveCursorToEnd(focusableElement);
+
             editor.saveContent();
             return true;
         }
@@ -41,7 +47,10 @@ export class ListPlugin extends Plugin {
             if (parentList.children.length === 0) {
                 parentList.remove();
             }
-            moveCursorToEnd(listItem);
+            
+            const focusableElement = listItem.querySelector('span') || listItem;
+            moveCursorToEnd(focusableElement);
+
             editor.saveContent();
             return true;
         }

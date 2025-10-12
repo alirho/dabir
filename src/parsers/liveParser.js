@@ -28,31 +28,23 @@ export function parseLiveBlock(line) {
         const figcaption = alt ? `<figcaption>${alt}</figcaption>` : '';
         return `<figure><img src="${src}" alt="${alt}">${figcaption}</figure>`;
     }
-    
-    // Checklist item
-    const checklistMatch = line.match(/^(\s*)\[([xX ])\] (.*)/);
-    if (checklistMatch) {
-        const isChecked = checklistMatch[2].toLowerCase() === 'x';
-        const content = parseInline(checklistMatch[3]);
-        // Wrap in a div to avoid nested list issues on single-line parse
-        return `<ul class="checklist"><li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}>${content}</li></ul>`;
-    }
 
-    // List item (simple version for live parsing)
+    // Unified List & Checklist item processing
     const listMatch = line.match(/^(\s*)([-*]|[\d۰-۹]+\.) (.*)/);
     if (listMatch) {
         const type = /[-*]/.test(listMatch[2]) ? 'ul' : 'ol';
-        const content = listMatch[3];
-        const checklistContentMatch = content.match(/^\[([xX ])\] (.*)/);
+        const listContent = listMatch[3];
 
-        if (checklistContentMatch) {
-            const isChecked = checklistContentMatch[1].toLowerCase() === 'x';
-            const checklistContent = parseInline(checklistContentMatch[2]);
-            return `<ul class="checklist"><li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}>${checklistContent}</li></ul>`;
+        const checklistInnerMatch = listContent.match(/^\[([xX ])\]\s?/);
+        if (checklistInnerMatch) {
+            const isChecked = checklistInnerMatch[1].toLowerCase() === 'x';
+            const contentText = listContent.substring(checklistInnerMatch[0].length);
+            const content = parseInline(contentText);
+            return `<ul class="checklist"><li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}>${content}</li></ul>`;
+        } else {
+            const content = parseInline(listContent);
+            return `<${type}><li>${content}</li></${type}>`;
         }
-        
-        const listContent = parseInline(content);
-        return `<${type}><li>${listContent}</li></${type}>`;
     }
     
     // Blockquote

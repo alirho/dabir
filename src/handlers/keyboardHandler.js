@@ -39,6 +39,13 @@ export class KeyboardHandler {
             }
         }
 
+        if (event.key === 'Backspace' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            if (this.handleBackspace(event)) {
+                event.preventDefault();
+                return;
+            }
+        }
+
         const modifiers = [];
         if (event.ctrlKey) modifiers.push('ctrl');
         if (event.metaKey) modifiers.push('meta');
@@ -57,11 +64,109 @@ export class KeyboardHandler {
         }
     }
 
+    handleBackspace(event) {
+        const { selection } = this.editor;
+        const range = selection.range;
+
+        if (range && range.collapsed && range.startOffset === 0) {
+            const parentElement = selection.parentElement;
+            const listItem = parentElement.closest('li.checklist-item');
+            
+            if (listItem) {
+                const contentContainer = listItem.querySelector('span');
+                if (contentContainer && contentContainer.contains(range.startContainer)) {
+                    const preCursorRange = document.createRange();
+                    preCursorRange.selectNodeContents(contentContainer);
+                    preCursorRange.setEnd(range.startContainer, range.startOffset);
+                    if (preCursorRange.toString().trim() === '') {
+                        // At the start of the item, convert to normal list item.
+                        const list = listItem.parentElement;
+                        const checkbox = listItem.querySelector('input[type="checkbox"]');
+                        if (checkbox) checkbox.remove();
+
+                        const contentNodes = contentContainer ? Array.from(contentContainer.childNodes) : [];
+                        if (contentContainer) {
+                            contentContainer.replaceWith(...contentNodes);
+                        }
+
+                        if (listItem.textContent.trim() === '') {
+                            listItem.innerHTML = '<br>';
+                        }
+
+                        listItem.classList.remove('checklist-item', 'checked');
+
+                        if (list && !list.querySelector('li.checklist-item')) {
+                            list.classList.remove('checklist');
+                        }
+                        
+                        const newRange = document.createRange();
+                        newRange.selectNodeContents(listItem);
+                        newRange.collapse(true);
+                        selection.setRange(newRange);
+
+                        this.editor.saveContent();
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     handleEnter(event) {
         const { selection } = this.editor;
         const parentElement = selection.parentElement;
         if (!parentElement) return false;
     
+        const checklistItem = parentElement.closest('li.checklist-item');
+        if (checklistItem) {
+            const contentSpan = checklistItem.querySelector('span');
+            const isItemEmpty = !contentSpan || contentSpan.textContent.trim().replace(/\u200B/g, '') === '';
+
+            if (isItemEmpty) {
+                // Exit list functionality
+                const list = checklistItem.parentElement;
+                const listContainer = list.parentElement;
+                const newBlock = document.createElement('div');
+                newBlock.innerHTML = '<br>';
+
+                if (listContainer.tagName === 'LI') { // Nested list -> outdent to a new line
+                    listContainer.after(newBlock);
+                    checklistItem.remove();
+                    if (list.children.length === 0) {
+                        list.remove();
+                    }
+                } else { // Top-level list -> exit
+                    if (list.children.length === 1) { // It's the only item
+                        list.replaceWith(newBlock);
+                    } else {
+                        list.after(newBlock);
+                        checklistItem.remove();
+                    }
+                }
+                moveCursorToEnd(newBlock);
+
+            } else {
+                // Create new checklist item
+                const newLi = document.createElement('li');
+                newLi.className = 'checklist-item';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                newLi.appendChild(checkbox);
+                
+                const newSpan = document.createElement('span');
+                newSpan.innerHTML = '&#8203;'; // Zero-width space for cursor
+                newLi.appendChild(newSpan);
+
+                checklistItem.after(newLi);
+                moveCursorToEnd(newSpan);
+            }
+
+            this.editor.saveContent();
+            return true;
+        }
+
         const container = parentElement.closest('blockquote, .dabir-admonition');
         if (container) {
             const currentLine = parentElement.closest('div, p');
@@ -107,6 +212,16 @@ export class KeyboardHandler {
                 this._tryToParseBlock(targetBlock, event.key);
             }
         } else if (event.key === ' ') {
+            const parentElement = this.editor.selection.parentElement;
+            const listItem = parentElement ? parentElement.closest('li') : null;
+    
+            if (listItem && !listItem.classList.contains('checklist-item')) {
+                if (this._tryToUpdateListItem(listItem)) {
+                    event.preventDefault();
+                    return;
+                }
+            }
+            
             const currentBlock = this._findCurrentBlock();
             if (currentBlock) {
                 const blockParsed = this._tryToParseBlock(currentBlock, event.key);
@@ -115,6 +230,58 @@ export class KeyboardHandler {
                 }
             }
         }
+    }
+
+    _tryToUpdateListItem(listItem) {
+        const text = listItem.textContent;
+        const match = text.match(/^\s*\[([xX ])\]\s/);
+    
+        if (!match) return false;
+    
+        const listElement = listItem.parentElement;
+        if (!listElement || !['UL', 'OL'].includes(listElement.tagName)) {
+            return false;
+        }
+        
+        requestAnimationFrame(() => {
+            const sublist = listItem.querySelector('ul, ol');
+            if (sublist) sublist.remove();
+            
+            const mainText = listItem.textContent;
+            const mainMatch = mainText.match(/^\s*\[([xX ])\]\s(.*)/s);
+            
+            if (!mainMatch) {
+                if(sublist) listItem.appendChild(sublist);
+                return;
+            }
+    
+            const isChecked = mainMatch[1].toLowerCase() === 'x';
+            const contentText = mainMatch[2] || '';
+            const contentHTML = parseInline(contentText);
+    
+            listItem.innerHTML = '';
+    
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = isChecked;
+            listItem.appendChild(checkbox);
+    
+            const contentSpan = document.createElement('span');
+            contentSpan.innerHTML = contentHTML || '&#8203;'; // Zero-width space
+            listItem.appendChild(contentSpan);
+    
+            if (sublist) listItem.appendChild(sublist);
+    
+            listElement.classList.add('checklist');
+            listItem.classList.add('checklist-item');
+            listItem.classList.toggle('checked', isChecked);
+            
+            moveCursorToEnd(contentSpan);
+    
+            this.editor.saveContent();
+        });
+    
+        return true;
     }
     
     _findCurrentBlock() {

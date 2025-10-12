@@ -31,7 +31,21 @@ export class MouseHandler {
             const listItem = target.closest('li.checklist-item');
             if (listItem) {
                 setTimeout(() => { // Allow checkbox state to update
-                    listItem.classList.toggle('checked', target.checked);
+                    const isChecked = target.checked;
+                    
+                    // Update the clicked item itself
+                    listItem.classList.toggle('checked', isChecked);
+
+                    // Find all descendant checkboxes and update them to match the parent
+                    const childCheckboxes = listItem.querySelectorAll('li.checklist-item input[type="checkbox"]');
+                    childCheckboxes.forEach(checkbox => {
+                        checkbox.checked = isChecked;
+                        const childLi = checkbox.closest('li.checklist-item');
+                        if (childLi) {
+                            childLi.classList.toggle('checked', isChecked);
+                        }
+                    });
+                    
                     this.editor.saveContent();
                 }, 0);
             }
