@@ -53,5 +53,11 @@ export function parseLiveBlock(line) {
         return `<blockquote><div>${content || '<br>'}</div></blockquote>`;
     }
 
+    // Code Block start
+    const codeBlockMatch = line.trim().match(/^```(\w*)$/);
+    if (codeBlockMatch) {
+        return `<pre><code>&#8203;</code></pre>`;
+    }
+
     return null;
 }

@@ -117,6 +117,102 @@ export class KeyboardHandler {
         const { selection } = this.editor;
         const parentElement = selection.parentElement;
         if (!parentElement) return false;
+
+        const preElement = parentElement.closest('pre');
+        if (preElement) {
+            const range = selection.range;
+            if (!range || !range.collapsed) return false;
+        
+            const codeElement = preElement.querySelector('code');
+            if (!codeElement) return false;
+        
+            // Normalize the code content by replacing <br> and other elements with newlines
+            // to reliably detect empty lines regardless of DOM structure.
+            const getNormalizedTextAndCursor = () => {
+                const tempDiv = document.createElement('div');
+                const codeClone = codeElement.cloneNode(true);
+                tempDiv.innerHTML = codeClone.innerHTML.replace(/<br\s*\/?>/gi, '\n');
+                const text = tempDiv.textContent;
+        
+                const preCursorRange = range.cloneRange();
+                preCursorRange.selectNodeContents(codeElement);
+                preCursorRange.setEnd(range.startContainer, range.startOffset);
+                const preCursorFragment = preCursorRange.cloneContents();
+                tempDiv.innerHTML = '';
+                tempDiv.appendChild(preCursorFragment);
+                tempDiv.innerHTML = tempDiv.innerHTML.replace(/<br\s*\/?>/gi, '\n');
+                const cursorPos = tempDiv.textContent.length;
+        
+                return { text, cursorPos };
+            };
+        
+            const { text, cursorPos } = getNormalizedTextAndCursor();
+        
+            if (text.replace(/\u200B/g, '').trim() === '') {
+                const newBlock = document.createElement('div');
+                newBlock.innerHTML = '<br>';
+                preElement.replaceWith(newBlock);
+                moveCursorToEnd(newBlock);
+                this.editor.saveContent();
+                return true;
+            }
+        
+            const textBeforeCursor = text.substring(0, cursorPos);
+            const lastNewlineIndex = textBeforeCursor.lastIndexOf('\n');
+            const lineStart = lastNewlineIndex + 1;
+        
+            const textAfterCursor = text.substring(cursorPos);
+            const nextNewlineIndex = textAfterCursor.indexOf('\n');
+            const lineEnd = cursorPos + (nextNewlineIndex === -1 ? textAfterCursor.length : nextNewlineIndex);
+        
+            const currentLineText = text.substring(lineStart, lineEnd);
+        
+            if (currentLineText.replace(/\u200B/g, '').trim() === '') {
+                const textBefore = text.substring(0, lineStart > 0 ? lineStart - 1 : 0);
+                const textAfter = text.substring(lineEnd + 1);
+        
+                const newBlock = document.createElement('div');
+                newBlock.innerHTML = '<br>';
+        
+                if (textBefore.trim()) {
+                    codeElement.textContent = textBefore.trimEnd();
+                    preElement.after(newBlock);
+                } else {
+                    preElement.replaceWith(newBlock);
+                }
+        
+                if (textAfter.trim()) {
+                    const newPre = document.createElement('pre');
+                    const newCode = document.createElement('code');
+                    newCode.textContent = textAfter.trimStart();
+                    newPre.appendChild(newCode);
+                    newBlock.after(newPre);
+                }
+        
+                moveCursorToEnd(newBlock);
+                this.editor.saveContent();
+                return true;
+            }
+        
+            if (currentLineText.trim() === '```') {
+                const newTextContent = (text.substring(0, lineStart) + text.substring(lineEnd + 1)).trim();
+                const newBlock = document.createElement('div');
+                newBlock.innerHTML = '<br>';
+        
+                if (newTextContent) {
+                    codeElement.textContent = newTextContent;
+                    preElement.after(newBlock);
+                } else {
+                    preElement.replaceWith(newBlock);
+                }
+        
+                moveCursorToEnd(newBlock);
+                this.editor.saveContent();
+                return true;
+            }
+        
+            return false; // Allow default behavior (inserting newline)
+        }
     
         const checklistItem = parentElement.closest('li.checklist-item');
         if (checklistItem) {
@@ -202,14 +298,16 @@ export class KeyboardHandler {
     }
 
     handleKeyUp(event) {
+        const currentBlock = this._findCurrentBlock();
         if (event.key === 'Enter') {
-            const currentBlock = this._findCurrentBlock();
             if (currentBlock && currentBlock.previousElementSibling) {
                 const targetBlock = currentBlock.previousElementSibling;
                 if (this._tryToParseMultiLineBlock(targetBlock)) {
                     return;
                 }
-                this._tryToParseBlock(targetBlock, event.key);
+                if (this._tryToParseBlock(targetBlock, event.key, currentBlock)) {
+                    return;
+                }
             }
         } else if (event.key === ' ') {
             const parentElement = this.editor.selection.parentElement;
@@ -222,7 +320,6 @@ export class KeyboardHandler {
                 }
             }
             
-            const currentBlock = this._findCurrentBlock();
             if (currentBlock) {
                 const blockParsed = this._tryToParseBlock(currentBlock, event.key);
                 if (!blockParsed && currentBlock.tagName === 'DIV') {
@@ -338,7 +435,7 @@ export class KeyboardHandler {
         return false;
     }
 
-    _tryToParseBlock(block, triggerKey) {
+    _tryToParseBlock(block, triggerKey, nextBlock = null) {
         if (!block || !['DIV', 'P'].includes(block.tagName)) {
             return false;
         }
@@ -357,6 +454,14 @@ export class KeyboardHandler {
                     if (triggerKey === ' ') {
                         const focusElement = newElement.querySelector('div') || newElement.querySelector('li') || newElement;
                         moveCursorToEnd(focusElement);
+                    } else if (triggerKey === 'Enter') {
+                        if (newElement.tagName === 'PRE') {
+                            if (nextBlock && nextBlock.textContent.trim() === '') {
+                                nextBlock.remove();
+                            }
+                            const focusElement = newElement.querySelector('code') || newElement;
+                            moveCursorToEnd(focusElement);
+                        }
                     }
                     
                     this.editor.saveContent();
