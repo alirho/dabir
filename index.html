@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="dabir.svg" type="image/svg+xml">
-    <title>ویرایشگر مارک‌داون دبیر</title>
+    <title>مثال استفاده از Dabir.js</title>
     <link rel="stylesheet" href="dabir.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
@@ -23,12 +23,25 @@
 <body>
     <div id="my-editor"></div>
 
-    <script src="dabir.js"></script>
-    <script>
+    <script type="module">
+        import DabirEditor from './src/index.js';
+        import { AdmonitionPlugin } from './src/plugins/admonitionPlugin.js';
+        import { DirectionPlugin } from './src/plugins/directionPlugin.js';
+        import { ListPlugin } from './src/plugins/listPlugin.js';
+        import { TablePlugin } from './src/plugins/tablePlugin.js';
+
         document.addEventListener('DOMContentLoaded', () => {
             new DabirEditor('#my-editor', {
                 placeholder: 'یادداشت خود را اینجا بنویسید...',
-                storageKey: 'my-dabir-note'
+                storage: {
+                    key: 'my-dabir-note'
+                },
+                plugins: [
+                    AdmonitionPlugin,
+                    DirectionPlugin,
+                    ListPlugin,
+                    TablePlugin
+                ]
             });
         });
     </script>

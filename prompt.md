@@ -415,3 +415,193 @@ editor.addEventListener('keydown', (e) => {
 
 ## پرامپت ۸۲
 می‌خوام تگ‌های HTML هم مثل نشانه‌گذاری‌های مارک‌داون زمانی که مکان‌نما بر روی اون‌‌ها قرار می‌گیره نمایش داده بشه.
+
+## پرامپت ۸۳
+می‌خوام پروژه را با معماری بهتر و کد تمیزتر بازنویسی کنی.
+
+مشکلات فعلی:
+1. متدهای بسیار طولانی (برخی بیش از 200 خط)
+2. تکرار کد زیاد
+3. همه چیز در یک فایل و یک کلاس
+4. سخت بودن تست و نگهداری
+5. عدم وجود سیستم plugin
+6. Event listener های پیچیده و طولانی
+
+معماری مورد نظر برای نسخه جدید:
+می‌خوام پروژه به صورت ماژولار پیاده‌سازی بشه.
+
+1. ساختار فایل‌ها:
+```
+src/
+├── core/
+│   ├── editor.js         // کلاس اصلی و هماهنگ‌کننده
+│   ├── selection.js      // مدیریت selection و cursor
+│   ├── storage.js        // ذخیره و بازیابی
+│   └── eventEmitter.js   // سیستم رویداد داخلی
+├── parsers/
+│   ├── markdownParser.js // تبدیل markdown به HTML
+│   ├── htmlParser.js     // تبدیل HTML به markdown  
+│   ├── inlineParser.js   // پردازش عناصر inline
+│   └── blockParser.js    // پردازش عناصر block
+├── handlers/
+│   ├── keyboardHandler.js // مدیریت keyboard events
+│   ├── mouseHandler.js    // مدیریت mouse events
+│   ├── clipboardHandler.js // مدیریت copy/paste
+│   └── inputHandler.js     // مدیریت input events
+├── renderers/
+│   ├── renderer.js        // رندر کننده اصلی
+│   ├── inlineRenderer.js  // رندر عناصر inline
+│   └── blockRenderer.js   // رندر عناصر block
+├── plugins/
+│   ├── plugin.js          // کلاس پایه plugin
+│   ├── tablePlugin.js     // منطق جداول
+│   ├── listPlugin.js      // منطق لیست‌ها
+│   ├── admonitionPlugin.js // منطق admonitions
+│   └── directionPlugin.js  // منطق RTL/LTR
+├── utils/
+│   ├── dom.js            // توابع کمکی DOM
+│   ├── regex.js          // الگوهای regex
+│   ├── debounce.js       // توابع performance
+│   └── diff.js           // محاسبه تفاوت DOM
+└── index.js              // نقطه ورود اصلی
+```
+
+2. طراحی API:
+API باید تمیز، قابل فهم و در صورت امکان زنجیره‌ای (chainable) باشد. این API باید متدهای واضحی برای دستکاری محتوا، مدیریت وضعیت و توسعه‌پذیری فراهم کند.
+
+```javascript
+// استفاده پایه
+const editor = new DabirEditor('#editor', {
+    placeholder: 'اینجا بنویسید...',
+    plugins: [TablePlugin, ListPlugin],
+    storage: {
+        enabled: true,
+        key: 'my-content'
+    }
+});
+
+// سیستم plugin
+editor.use(CustomPlugin);
+
+// Event API
+editor.on('change', (content) => {});
+editor.on('selection', (range) => {});
+
+// متدهای عمومی
+editor.getMarkdown();
+editor.getHTML();
+editor.setContent(content, format);
+editor.clear();
+editor.focus();
+editor.destroy();
+
+// دسترسی به ماژول‌ها
+editor.parser.registerRule(name, pattern, handler);
+editor.renderer.registerComponent(name, component);
+```
+
+3. نمونه کد برای ماژول‌ها:
+
+```javascript
+// Parser با قابلیت گسترش
+class MarkdownParser {
+    constructor() {
+        this.rules = new Map();
+        this.blockRules = [];
+        this.inlineRules = [];
+    }
+    
+    registerBlockRule(rule) {
+        this.blockRules.push(rule);
+        this.blockRules.sort((a, b) => b.priority - a.priority);
+    }
+    
+    parse(markdown) {
+        const ast = this.parseToAST(markdown);
+        return this.astToHTML(ast);
+    }
+}
+
+// Handler با separation of concerns
+class KeyboardHandler {
+    constructor(editor) {
+        this.editor = editor;
+        this.shortcuts = new Map();
+        this.registerDefaultShortcuts();
+    }
+    
+    register(key, modifiers, handler) {
+        const shortcut = this.normalizeShortcut(key, modifiers);
+        this.shortcuts.set(shortcut, handler);
+    }
+    
+    handle(event) {
+        const shortcut = this.getShortcutFromEvent(event);
+        const handler = this.shortcuts.get(shortcut);
+        if (handler) {
+            handler(event, this.editor);
+        }
+    }
+}
+
+// Plugin system
+class Plugin {
+    static install(editor, options) {
+        throw new Error('Plugin must implement install method');
+    }
+}
+
+class TablePlugin extends Plugin {
+    static install(editor, options) {
+        // ثبت parser rules
+        editor.parser.registerBlockRule({
+            name: 'table',
+            priority: 50,
+            pattern: /^\|.+\|$/,
+            parse: this.parseTable
+        });
+        
+        // ثبت keyboard shortcuts
+        editor.keyboard.register('Tab', [], this.handleTab);
+        editor.keyboard.register('Enter', [], this.handleEnter);
+        
+        // ثبت renderer
+        editor.renderer.registerComponent('table', TableComponent);
+    }
+}
+```
+
+4. ویژگی‌های مهم که باید حفظ شوند:
+1. تمام قابلیت‌های مارک‌داون فعلی
+2. ویرایش درجا (کلیک روی عناصر برای تبدیل به مارک‌داون)
+3. تشخیص خودکار جهت متن (RTL/LTR)
+4. ذخیره‌سازی خودکار
+5. مدیریت هوشمند selection و cursor
+6. پشتیبانی از copy/paste با حفظ فرمت
+
+5. بهبودهای مورد نظر:
+1. **Performance**: استفاده از virtual DOM یا diff algorithm
+2. **Bundle size**: tree-shaking و lazy loading برای plugins
+3. **Type safety**: اضافه کردن JSDoc یا TypeScript definitions
+4. **Testing**: ساختار testable با dependency injection
+5. **Extensibility**: API واضح برای توسعه‌دهندگان
+6. **Error handling**: مدیریت بهتر خطاها با error boundaries
+
+6. خروجی مورد نظر:
+1. کد ES6+ مدرن و clean
+2. هر ماژول حداکثر 200 خط
+3. توابع حداکثر 50 خط
+4. کامنت‌های JSDoc برای API عمومی
+5. README با مثال‌های استفاده
+6. حفظ سازگاری با API فعلی (backward compatibility)
+
+## پرامپت ۸۴
+تغییراتی که ایجاد کردی باعث شده هیچ نشان‌گذاری مارک‌دوانی رندر نشه
+
+## پرامپت ۸۵
+مشکل بر طرف نشد، با وارد کردن نشانه‌گذاری‌های مارک‌دوان هیچکدوم رندر نمی‌شن.
+
+## پرامپت ۸۶
+باز دن دکمه space نشانه‌گذاری‌های خطی مارک‌داون تبدیل نمی‌شن. مثلا متن زیر هنوز به صورت خام نمایش داده می‌شه.
+
+این یک آزمون است و هیچ ارزش دیگری ندارد.
