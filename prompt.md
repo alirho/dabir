@@ -654,3 +654,91 @@ class TablePlugin extends Plugin {
 
 ## پرامپت ۱۰۱
 متاسفانه هنوز هم اگر در انتهای بلوک کد و در یک خط خالی اینتر بزنم از بلوک خارج نمی‌شه.
+
+## پرامپت ۱۰۲
+فایل README پروژه را با توجه به ساختار جدید پروژه بازنویسی کن.
+
+## پرامپت ۱۰۳
+ازت می‌خوام برای دبیر یک سند فنی کامل بنویسی که شامل موارد زیر باشه:
+
+ 1. API Reference
+یک مستند API Reference کامل برای کتابخانه دبیر بنویس که شامل:
+    - تمام متدهای عمومی کلاس DabirEditor
+    - پارامترها با نوع داده
+    - مقادیر بازگشتی
+    - مثال کد برای هر متد
+    - تمام eventهای موجود
+    - تمام optionهای قابل تنظیم
+
+ 2. Getting Started Guide
+یک راهنمای شروع سریع بنویس که شامل:
+    - نحوه نصب (npm, CDN, download)
+    - اولین ویرایشگر
+    - تنظیمات پایه
+    - مثال‌های ساده
+    - رفع مشکلات رایج
+
+ 3. Plugin Development Guide
+راهنمای توسعه plugin برای دبیر بنویس که شامل:
+    - ساختار یک plugin
+    - Plugin API
+    - lifecycle hooks
+    - مثال: ساخت یک emoji plugin
+    - best practices
+
+ 4. Configuration Guide
+راهنمای کامل تنظیمات دبیر بنویس:
+    - تمام optionها با توضیح
+    - تنظیمات storage
+    - تنظیمات plugins
+    - keyboard shortcuts
+    - مثال‌های مختلف configuration
+
+ 5. Examples
+مثال‌های کاربردی برای دبیر بنویس:
+    1. ویرایشگر ساده
+    2. ویرایشگر با toolbar
+    3. ویرایشگر با preview
+    4. استفاده در React
+    5. استفاده در Vue
+    6. ویرایشگر با custom plugins
+    7. ویرایشگر چندزبانه
+
+ 6. Architecture Overview
+توضیح معماری دبیر بنویس:
+    - نمودار معماری
+    - توضیح هر ماژول
+    - data flow
+    - event system
+    - plugin system
+
+ 7. Keyboard Shortcuts
+جدول کامل keyboard shortcuts دبیر با:
+    - shortcuts پیش‌فرض
+    - نحوه تغییر shortcuts
+    - اضافه کردن shortcut جدید
+
+
+ 8. Styling Guide
+راهنمای شخصی‌سازی ظاهر دبیر:
+    - CSS classes
+    - CSS variables
+    - theme ساختن
+    - responsive design
+    - dark mode
+
+ 9. Performance Guide
+راهنمای بهینه‌سازی performance:
+    - best practices
+    - lazy loading plugins
+    - large documents
+    - memory management
+
+ 10. JSDoc Comments
+برای تمام متدها و کلاس‌های عمومی در کد، JSDoc comment کامل بنویس
+
+مستند باید:
+- کامل و جامع باشه
+- مثال‌های کد داشته باشه
+- از Markdown formatting استفاده کنه
+- شامل جداول و نمودارها باشه (در صورت نیاز)
