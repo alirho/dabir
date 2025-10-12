@@ -1,18 +1,26 @@
-
 /**
- * Manages editor selection and range.
+ * کلاس مدیریت انتخاب متن (Selection) و محدوده (Range) در ویرایشگر.
+ * @class Selection
  */
 export default class Selection {
     /**
-     * @param {import('./editor.js').DabirEditor} editor The editor instance.
+     * @param {import('./editor.js').DabirEditor} editor - نمونه ویرایشگر.
      */
     constructor(editor) {
+        /**
+         * @private
+         * @type {import('./editor.js').DabirEditor}
+         */
         this.editor = editor;
+        /**
+         * @private
+         * @type {HTMLElement}
+         */
         this.element = editor.element;
     }
 
     /**
-     * Gets the current window selection object.
+     * آبجکت Selection فعلی پنجره را برمی‌گرداند.
      * @returns {globalThis.Selection|null}
      */
     get selection() {
@@ -20,7 +28,7 @@ export default class Selection {
     }
 
     /**
-     * Gets the current selection range.
+     * محدوده (Range) فعلی انتخاب را برمی‌گرداند.
      * @returns {Range|null}
      */
     get range() {
@@ -29,8 +37,8 @@ export default class Selection {
     }
 
     /**
-     * Sets the selection to a specific range.
-     * @param {Range} range
+     * انتخاب متن را روی یک محدوده مشخص تنظیم می‌کند.
+     * @param {Range} range - محدوده‌ای که باید انتخاب شود.
      */
     setRange(range) {
         const sel = this.selection;
@@ -41,7 +49,7 @@ export default class Selection {
     }
 
     /**
-     * Gets the current active node in the selection.
+     * گره (Node) فعال فعلی در انتخاب را برمی‌گرداند.
      * @returns {Node|null}
      */
     get anchorNode() {
@@ -50,7 +58,7 @@ export default class Selection {
     }
 
     /**
-     * Gets the parent element of the current selection anchor.
+     * المان والد لنگر (anchor) انتخاب فعلی را برمی‌گرداند.
      * @returns {HTMLElement|null}
      */
     get parentElement() {

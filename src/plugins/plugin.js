@@ -1,13 +1,16 @@
-
 /**
- * Base class for all plugins.
+ * کلاس پایه برای تمام پلاگین‌ها.
+ * پلاگین‌ها باید این کلاس را extend کرده و متد استاتیک `install` را پیاده‌سازی کنند.
+ * @class Plugin
  */
 export default class Plugin {
     /**
-     * Installs the plugin on the editor instance.
-     * This method must be implemented by subclasses.
-     * @param {import('../core/editor.js').DabirEditor} editor The editor instance.
-     * @param {object} options Plugin-specific options.
+     * پلاگین را بر روی نمونه ویرایشگر نصب می‌کند.
+     * این متد باید توسط کلاس‌های فرزند پیاده‌سازی شود.
+     * @static
+     * @param {import('../core/editor.js').DabirEditor} editor - نمونه ویرایشگر.
+     * @param {object} [options] - گزینه‌های مخصوص پلاگین.
+     * @returns {object|void} یک API اختیاری که توسط پلاگین ارائه می‌شود.
      */
     static install(editor, options) {
         throw new Error('Plugin must implement the static install method.');

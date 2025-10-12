@@ -3,11 +3,12 @@ import { parseLiveBlock } from '../parsers/liveParser.js';
 import { parseInline } from '../parsers/inlineParser.js';
 
 /**
- * Handles keyboard events and shortcuts.
+ * مدیریت‌کننده رویدادهای کیبورد و میانبرها.
+ * @class KeyboardHandler
  */
 export class KeyboardHandler {
     /**
-     * @param {import('../core/editor.js').DabirEditor} editor
+     * @param {import('../core/editor.js').DabirEditor} editor - نمونه ویرایشگر.
      */
     constructor(editor) {
         this.editor = editor;
@@ -18,10 +19,10 @@ export class KeyboardHandler {
     }
 
     /**
-     * Registers a keyboard shortcut.
-     * @param {string} key The key (e.g., 'Enter', 'Tab').
-     * @param {string[]} modifiers An array of modifiers (e.g., ['Shift']).
-     * @param {Function} handler The function to execute.
+     * یک میانبر کیبورد ثبت می‌کند.
+     * @param {string} key - کلید اصلی (مانند 'Enter', 'Tab', 'b').
+     * @param {string[]} [modifiers=[]] - آرایه‌ای از کلیدهای اصلاح‌کننده (مانند ['Shift', 'Ctrl']).
+     * @param {Function} handler - تابعی که در زمان فشردن میانبر اجرا می‌شود.
      */
     register(key, modifiers = [], handler) {
         const keyString = `${modifiers.sort().join('+')}+${key}`.toLowerCase();
@@ -31,6 +32,11 @@ export class KeyboardHandler {
         this.shortcuts.get(keyString).push(handler);
     }
 
+    /**
+     * رویداد keydown را مدیریت می‌کند.
+     * @param {KeyboardEvent} event - آبجکت رویداد.
+     * @private
+     */
     handleKeyDown(event) {
         if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
             if (this.handleEnter(event)) {
@@ -64,6 +70,12 @@ export class KeyboardHandler {
         }
     }
 
+    /**
+     * رویداد Backspace را برای موارد خاص مانند بازبینه‌ها مدیریت می‌کند.
+     * @param {KeyboardEvent} event 
+     * @returns {boolean}
+     * @private
+     */
     handleBackspace(event) {
         const { selection } = this.editor;
         const range = selection.range;
@@ -113,6 +125,12 @@ export class KeyboardHandler {
         return false;
     }
 
+    /**
+     * منطق فشردن کلید Enter را برای خروج از بلوک‌ها مدیریت می‌کند.
+     * @param {KeyboardEvent} event 
+     * @returns {boolean}
+     * @private
+     */
     handleEnter(event) {
         const { selection } = this.editor;
         const parentElement = selection.parentElement;
@@ -131,6 +149,24 @@ export class KeyboardHandler {
             const getNormalizedTextAndCursor = () => {
                 const tempDiv = document.createElement('div');
                 const codeClone = codeElement.cloneNode(true);
+        
+                // Create a temporary container to correctly resolve innerHTML, including BRs
+                const walker = document.createTreeWalker(codeClone, NodeFilter.SHOW_ALL);
+                let normalizedHtml = '';
+                while (walker.nextNode()) {
+                    const node = walker.currentNode;
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        normalizedHtml += node.textContent;
+                    } else if (node.tagName === 'BR') {
+                        normalizedHtml += '\n';
+                    } else if (node.tagName === 'DIV' && node.parentNode === codeClone) {
+                         if (normalizedHtml.length > 0 && !normalizedHtml.endsWith('\n')) {
+                            normalizedHtml += '\n';
+                        }
+                        normalizedHtml += node.innerHTML.replace(/<br\s*\/?>/gi, '\n') + '\n';
+                    }
+                }
+                
                 tempDiv.innerHTML = codeClone.innerHTML.replace(/<br\s*\/?>/gi, '\n');
                 const text = tempDiv.textContent;
         
@@ -138,6 +174,7 @@ export class KeyboardHandler {
                 preCursorRange.selectNodeContents(codeElement);
                 preCursorRange.setEnd(range.startContainer, range.startOffset);
                 const preCursorFragment = preCursorRange.cloneContents();
+                
                 tempDiv.innerHTML = '';
                 tempDiv.appendChild(preCursorFragment);
                 tempDiv.innerHTML = tempDiv.innerHTML.replace(/<br\s*\/?>/gi, '\n');
@@ -271,7 +308,7 @@ export class KeyboardHandler {
                 return false;
             }
     
-            const isLineEmpty = currentLine.textContent.trim() === '';
+            const isLineEmpty = currentLine.textContent.trim().replace(/\u200B/g, '') === '';
             
             if (isLineEmpty) {
                 const contentChildren = Array.from(container.children).filter(el => 
@@ -297,6 +334,11 @@ export class KeyboardHandler {
         return false;
     }
 
+    /**
+     * رویداد keyup را برای پردازش زنده مارک‌داون مدیریت می‌کند.
+     * @param {KeyboardEvent} event - آبجکت رویداد.
+     * @private
+     */
     handleKeyUp(event) {
         const currentBlock = this._findCurrentBlock();
         if (event.key === 'Enter') {
@@ -329,6 +371,12 @@ export class KeyboardHandler {
         }
     }
 
+    /**
+     * تلاش می‌کند تا یک آیتم لیست معمولی را به بازبینه تبدیل کند.
+     * @param {HTMLLIElement} listItem 
+     * @returns {boolean}
+     * @private
+     */
     _tryToUpdateListItem(listItem) {
         const text = listItem.textContent;
         const match = text.match(/^\s*\[([xX ])\]\s/);
@@ -381,6 +429,11 @@ export class KeyboardHandler {
         return true;
     }
     
+    /**
+     * بلاک فعلی که مکان‌نما در آن قرار دارد را پیدا می‌کند.
+     * @returns {HTMLElement|null}
+     * @private
+     */
     _findCurrentBlock() {
         const { selection } = this.editor;
         const anchor = selection.anchorNode;
@@ -393,6 +446,12 @@ export class KeyboardHandler {
         return (currentBlock && currentBlock.parentElement === this.element) ? currentBlock : null;
     }
 
+    /**
+     * تلاش می‌کند تا بلاک‌های چندخطی (مانند جعبه‌های توضیحی) را پردازش کند.
+     * @param {HTMLElement} endBlock 
+     * @returns {boolean}
+     * @private
+     */
     _tryToParseMultiLineBlock(endBlock) {
         if (!endBlock || !['DIV', 'P'].includes(endBlock.tagName)) {
             return false;
@@ -435,6 +494,14 @@ export class KeyboardHandler {
         return false;
     }
 
+    /**
+     * تلاش می‌کند تا یک بلاک تک‌خطی را پردازش کند.
+     * @param {HTMLElement} block 
+     * @param {string} triggerKey 
+     * @param {HTMLElement|null} nextBlock 
+     * @returns {boolean}
+     * @private
+     */
     _tryToParseBlock(block, triggerKey, nextBlock = null) {
         if (!block || !['DIV', 'P'].includes(block.tagName)) {
             return false;
@@ -472,6 +539,12 @@ export class KeyboardHandler {
         return false;
     }
 
+    /**
+     * تلاش می‌کند تا قالب‌بندی درون‌خطی را در یک بلاک پردازش کند.
+     * @param {HTMLElement} block 
+     * @returns {boolean}
+     * @private
+     */
     _tryToParseInline(block) {
         const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
         const nodesToProcess = [];

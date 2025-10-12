@@ -1,16 +1,20 @@
-
 /**
- * A simple event emitter class for internal communication.
+ * یک کلاس ساده برای مدیریت و انتشار رویدادها جهت ارتباطات داخلی.
+ * @class EventEmitter
  */
 export default class EventEmitter {
     constructor() {
+        /**
+         * @private
+         * @type {Map<string, Array<Function>>}
+         */
         this.events = new Map();
     }
 
     /**
-     * Subscribes to an event.
-     * @param {string} event The event name.
-     * @param {Function} listener The callback function.
+     * برای یک رویداد ثبت‌نام (subscribe) می‌کند.
+     * @param {string} event - نام رویداد.
+     * @param {Function} listener - تابع callback که باید اجرا شود.
      */
     on(event, listener) {
         if (!this.events.has(event)) {
@@ -20,9 +24,9 @@ export default class EventEmitter {
     }
 
     /**
-     * Emits an event.
-     * @param {string} event The event name.
-     * @param  {...any} args Arguments to pass to the listeners.
+     * یک رویداد را منتشر (emit) می‌کند.
+     * @param {string} event - نام رویداد.
+     * @param  {...any} args - آرگومان‌هایی که به شنونده‌ها پاس داده می‌شوند.
      */
     emit(event, ...args) {
         if (this.events.has(event)) {

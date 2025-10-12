@@ -1,21 +1,33 @@
+/**
+ * @typedef {object} StorageOptions
+ * @property {boolean} [enabled=true] - فعال یا غیرفعال بودن ذخیره‌سازی.
+ * @property {string} [key='dabir-content'] - کلید مورد استفاده در localStorage.
+ */
 
 /**
- * Manages saving and loading content from localStorage.
+ * کلاس مدیریت ذخیره و بارگذاری محتوا از localStorage.
+ * @class Storage
  */
 export default class Storage {
     /**
-     * @param {object} options
-     * @param {boolean} options.enabled
-     * @param {string} options.key
+     * @param {StorageOptions} [options={}] - گزینه‌های پیکربندی ذخیره‌سازی.
      */
     constructor(options = {}) {
+        /**
+         * @private
+         * @type {boolean}
+         */
         this.enabled = options.enabled !== false;
+        /**
+         * @private
+         * @type {string}
+         */
         this.key = options.key || 'dabir-content';
     }
 
     /**
-     * Saves content to storage.
-     * @param {string} content
+     * محتوا را در حافظه محلی ذخیره می‌کند.
+     * @param {string} content - محتوایی که باید ذخیره شود.
      */
     save(content) {
         if (this.enabled) {
@@ -28,8 +40,8 @@ export default class Storage {
     }
 
     /**
-     * Loads content from storage.
-     * @returns {string|null}
+     * محتوا را از حافظه محلی بارگذاری می‌کند.
+     * @returns {string|null} محتوای ذخیره‌شده یا null در صورت عدم وجود.
      */
     load() {
         if (this.enabled) {
