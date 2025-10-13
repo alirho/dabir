@@ -100,6 +100,10 @@
     list-style-type: disc;
 }
 
+.dabir-editor ul ul ul ul ul {
+    list-style-type: circle;
+}
+
 .dabir-editor ol {
     list-style-type: none;
     counter-reset: item;
