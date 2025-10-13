@@ -4,6 +4,11 @@
 
 قالب این فایل بر اساس [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) است و این پروژه از [Semantic Versioning](https://semver.org/spec/v2.0.0.html) پیروی می‌کند.
 
+## [1.6.1] - 1404-07-21
+
+#### تعمیر شده
+- رفع مشکل راه‌انداری در گیت‌هاب با اضافه کردن `.nojekyll`
+
 ## [1.6.0] - 1404-07-20
 
 #### افزوده شده
