@@ -38,20 +38,6 @@ export class KeyboardHandler {
      * @private
      */
     handleKeyDown(event) {
-        if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
-            if (this.handleEnter(event)) {
-                event.preventDefault();
-                return;
-            }
-        }
-
-        if (event.key === 'Backspace' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
-            if (this.handleBackspace(event)) {
-                event.preventDefault();
-                return;
-            }
-        }
-
         const modifiers = [];
         if (event.ctrlKey) modifiers.push('ctrl');
         if (event.metaKey) modifiers.push('meta');
@@ -66,6 +52,22 @@ export class KeyboardHandler {
                     event.preventDefault();
                     break;
                 }
+            }
+            // After executing custom shortcuts, check for native-like behavior
+            if (event.defaultPrevented) return;
+        }
+
+        if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            if (this.handleEnter(event)) {
+                event.preventDefault();
+                return;
+            }
+        }
+
+        if (event.key === 'Backspace' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+            if (this.handleBackspace(event)) {
+                event.preventDefault();
+                return;
             }
         }
     }
@@ -483,6 +485,14 @@ export class KeyboardHandler {
                                 for (let j = 1; j < blocksToRemove.length; j++) {
                                     blocksToRemove[j].remove();
                                 }
+
+                                if (newElement.tagName === 'TABLE') {
+                                    const firstCell = newElement.querySelector('td');
+                                    if (firstCell) {
+                                        moveCursorToEnd(firstCell);
+                                    }
+                                }
+
                                 this.editor.saveContent();
                             });
                             return true;
