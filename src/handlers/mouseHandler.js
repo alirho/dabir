@@ -1,4 +1,6 @@
 import { parseInline } from '../parsers/inlineParser.js';
+import { parseLiveBlock } from '../parsers/liveParser.js';
+import { moveCursorToEnd } from '../utils/dom.js';
 
 /**
  * Handles mouse and selection events.
@@ -65,6 +67,10 @@ export class MouseHandler {
                 prefix = '[';
                 suffix = `](${element.getAttribute('href') || ''})`;
                 break;
+            case 'H1': prefix = '# '; break;
+            case 'H2': prefix = '## '; break;
+            case 'H3': prefix = '### '; break;
+            case 'H4': prefix = '#### '; break;
             default: return null;
         }
         return { rawText: `${prefix}${text}${suffix}`, prefixLength: prefix.length };
@@ -76,28 +82,54 @@ export class MouseHandler {
             return;
         }
 
-        const rawTextNode = this.activeRawNode;
+        const nodeToRevert = this.activeRawNode;
         this.activeRawNode = null;
 
-        const rawText = rawTextNode.textContent;
-        if (!rawText.trim()) {
+        // --- Logic for inline elements (reverted from a text node) ---
+        if (nodeToRevert.nodeType === Node.TEXT_NODE) {
+            const rawText = nodeToRevert.textContent;
+            if (!rawText.trim()) {
+                this.ignoreSelectionChange = true;
+                nodeToRevert.remove();
+                requestAnimationFrame(() => { this.ignoreSelectionChange = false; });
+                return;
+            }
+            
+            const newHtml = parseInline(rawText);
+            if (newHtml === rawText) return;
+            
+            const fragment = document.createRange().createContextualFragment(newHtml);
+            
             this.ignoreSelectionChange = true;
-            rawTextNode.remove();
+            nodeToRevert.replaceWith(fragment);
             requestAnimationFrame(() => { this.ignoreSelectionChange = false; });
             return;
         }
-        
-        const newHtml = parseInline(rawText);
-        
-        if (newHtml === rawText) {
-            return;
+
+        // --- Logic for block elements (reverted from an element like H1) ---
+        if (/^H[1-4]$/.test(nodeToRevert.tagName)) {
+            const rawText = nodeToRevert.textContent;
+            
+            this.ignoreSelectionChange = true;
+
+            const newHtml = parseLiveBlock(rawText.trim());
+            let newElement;
+
+            if (newHtml) {
+                newElement = this.editor.renderer.createFromHTML(newHtml);
+            } else {
+                newElement = document.createElement('div');
+                newElement.textContent = rawText || '';
+                if (newElement.innerHTML === '') newElement.innerHTML = '<br>';
+            }
+
+            if (newElement) {
+                nodeToRevert.replaceWith(newElement);
+                moveCursorToEnd(newElement);
+            }
+
+            requestAnimationFrame(() => { this.ignoreSelectionChange = false; });
         }
-        
-        const fragment = document.createRange().createContextualFragment(newHtml);
-        
-        this.ignoreSelectionChange = true;
-        rawTextNode.replaceWith(fragment);
-        requestAnimationFrame(() => { this.ignoreSelectionChange = false; });
     }
 
     onSelectionChange() {
@@ -109,32 +141,33 @@ export class MouseHandler {
             return;
         }
 
-        const range = selection.getRangeAt(0);
         const anchorNode = selection.anchorNode;
 
-        if (this.activeRawNode && anchorNode !== this.activeRawNode) {
+        if (this.activeRawNode && !this.activeRawNode.contains(anchorNode)) {
             this._revertActiveRawNode();
         }
+
+        const range = selection.getRangeAt(0);
 
         if (!range.collapsed) {
             if (this.activeRawNode) this._revertActiveRawNode();
             return;
         }
 
+        const parentElement = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
+
         if (!this.activeRawNode) {
-            const parentElement = anchorNode.nodeType === Node.TEXT_NODE ? anchorNode.parentElement : anchorNode;
-            const formattingElement = parentElement.closest('strong, em, del, mark, a, code:not(pre *)');
+            const formattingElement = parentElement.closest('strong, em, del, mark, a, code:not(pre *), h1, h2, h3, h4');
 
             if (formattingElement && formattingElement.closest('[contenteditable="true"]') === this.editor.element) {
                 const markdownInfo = this._htmlToRawMarkdown(formattingElement);
                 
                 if (markdownInfo) {
+                    const isBlock = /^H[1-4]$/.test(formattingElement.tagName);
                     this.ignoreSelectionChange = true;
                     
-                    const offsetInNode = range.startOffset;
-                    let totalOffset = offsetInNode;
+                    let totalOffset = range.startOffset;
                     let currentNode = anchorNode;
-
                     while (currentNode && currentNode !== formattingElement) {
                         let prevSibling = currentNode.previousSibling;
                         while (prevSibling) {
@@ -144,20 +177,30 @@ export class MouseHandler {
                         currentNode = currentNode.parentNode;
                     }
                     
-                    const rawTextNode = document.createTextNode(markdownInfo.rawText);
-                    formattingElement.replaceWith(rawTextNode);
-                    this.activeRawNode = rawTextNode;
+                    const newOffset = Math.min(markdownInfo.prefixLength + totalOffset, markdownInfo.rawText.length);
                     
-                    const newRange = document.createRange();
-                    const newOffset = Math.min(
-                        markdownInfo.prefixLength + totalOffset,
-                        rawTextNode.length
-                    );
-                    newRange.setStart(rawTextNode, newOffset);
-                    newRange.collapse(true);
-                    
-                    selection.removeAllRanges();
-                    selection.addRange(newRange);
+                    if (isBlock) {
+                        formattingElement.textContent = markdownInfo.rawText;
+                        this.activeRawNode = formattingElement;
+                        const textNode = formattingElement.firstChild;
+                        if (textNode) {
+                            const newRange = document.createRange();
+                            newRange.setStart(textNode, newOffset);
+                            newRange.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                        }
+                    } else {
+                        const rawTextNode = document.createTextNode(markdownInfo.rawText);
+                        formattingElement.replaceWith(rawTextNode);
+                        this.activeRawNode = rawTextNode;
+                        
+                        const newRange = document.createRange();
+                        newRange.setStart(rawTextNode, newOffset);
+                        newRange.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
                     
                     requestAnimationFrame(() => { this.ignoreSelectionChange = false; });
                 }
