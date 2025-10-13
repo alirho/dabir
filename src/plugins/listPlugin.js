@@ -18,6 +18,19 @@ export class ListPlugin extends Plugin {
         const listItem = editor.selection.parentElement.closest('li');
         if (!listItem) return false;
 
+        let depth = 0;
+        let parent = listItem.parentElement;
+        while (parent && parent !== editor.element) {
+            if (parent.tagName === 'UL' || parent.tagName === 'OL') {
+                depth++;
+            }
+            parent = parent.parentElement;
+        }
+
+        if (depth >= 5) {
+            return false;
+        }
+
         const prevLi = listItem.previousElementSibling;
         if (prevLi) {
             let sublist = prevLi.querySelector('ul, ol');

@@ -1,4 +1,3 @@
-
 import { parseInline } from './inlineParser.js';
 
 /**
@@ -11,6 +10,7 @@ function processListBlock(lines, startIndex) {
     let html = '';
     let i = startIndex;
     const stack = [];
+    const MAX_DEPTH = 5;
 
     const getIndent = (line) => line.match(/^\s*/)[0].length;
 
@@ -32,7 +32,9 @@ function processListBlock(lines, startIndex) {
 
         const isChecklist = content.startsWith('[ ] ') || content.startsWith('[x] ');
 
-        if (stack.length === 0 || indent > stack[stack.length - 1].indent || type !== stack[stack.length - 1].type) {
+        if (stack.length === 0 || 
+            (indent > stack[stack.length - 1].indent && stack.length < MAX_DEPTH) || 
+            (stack.length > 0 && type !== stack[stack.length - 1].type)) {
             if (stack.length > 0 && type !== stack[stack.length - 1].type) {
                 html += `</${stack.pop().type}>`;
             }
@@ -44,7 +46,7 @@ function processListBlock(lines, startIndex) {
         if (isChecklist) {
             const isChecked = content.startsWith('[x] ');
             content = content.substring(4);
-            html += `<li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}>${parseInline(content)}</li>`;
+            html += `<li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}><span>${parseInline(content)}</span></li>`;
         } else {
             html += `<li>${parseInline(content)}</li>`;
         }
