@@ -1,4 +1,3 @@
-
 /**
  * Converts editor HTML content to Markdown.
  */
@@ -16,7 +15,11 @@ export class HtmlParser {
      * @returns {string}
      */
     parse(element) {
-        return this._convertNodeToMarkdown(element).trim();
+        const rawMarkdown = this._convertNodeToMarkdown(element);
+        // Collapse sequences of 3 or more newlines into exactly two.
+        // This standardizes block spacing and removes extra blank lines
+        // caused by the recursive parsing logic.
+        return rawMarkdown.replace(/\n{3,}/g, '\n\n').trim();
     }
 
     _convertNodeToMarkdown(node, listState = {}) {
@@ -40,7 +43,7 @@ export class HtmlParser {
             case 'A': return `[${childMarkdown}](${node.getAttribute('href')})`;
             case 'BR': return '\n';
             case 'HR': return '\n---\n\n';
-            case 'DIV': case 'P': return `${childMarkdown}\n`;
+            case 'DIV': case 'P': return `${childMarkdown}\n\n`;
             case 'BLOCKQUOTE':
                 return childMarkdown.trim().split('\n').map(line => `> ${line}`).join('\n') + '\n\n';
             case 'FIGURE':
