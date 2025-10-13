@@ -10,7 +10,7 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-    <link rel="stylesheet" href="dabir.css">
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="editor"></div>
@@ -88,7 +88,7 @@
 ```jsx
 import React, { useEffect, useRef } from 'react';
 import DabirEditor from 'path/to/src/index.js';
-import 'path/to/dabir.css';
+import 'path/to/styles.css';
 
 function DabirEditorComponent() {
     const editorRef = useRef(null);
@@ -127,7 +127,7 @@ export default DabirEditorComponent;
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import DabirEditor from 'path/to/src/index.js';
-import 'path/to/dabir.css';
+import 'path/to/styles.css';
 
 const editorRef = ref(null);
 let editorInstance = null;

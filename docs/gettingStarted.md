@@ -9,7 +9,7 @@
 ### دانلود مستقیم
 
 1.  کل پروژه را از ریپازیتوری گیت‌هاب دانلود کنید.
-2.  پوشه `src` و فایل `dabir.css` را در پروژه خود کپی کنید.
+2.  پوشه `src` و فایل `styles.css` را در پروژه خود کپی کنید.
 
 ### استفاده از CDN (در آینده)
 
@@ -17,7 +17,7 @@
 
 ```html
 <!-- هنوز آماده نیست -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/alirho/dabir/dabir.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/alirho/dabir/styles.css">
 <script type="module" src="https://cdn.jsdelivr.net/gh/alirho/dabir/src/index.js"></script>
 ```
 
@@ -47,7 +47,7 @@ npm install dabir-editor
     <title>اولین ویرایشگر دبیر</title>
     
     <!-- ۱. فایل CSS را اضافه کنید -->
-    <link rel="stylesheet" href="path/to/your/dabir.css">
+    <link rel="stylesheet" href="path/to/your/styles.css">
     
     <style>
         body { background-color: #f0f2f5; padding: 2rem; }
@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     -   خطاهای کنسول مرورگر را بررسی کنید.
 
 -   **استایل‌ها به درستی اعمال نمی‌شوند:**
-    -   مطمئن شوید که فایل `dabir.css` به درستی در `<head>` صفحه لینک شده است و مسیر آن صحیح است.
+    -   مطمئن شوید که فایل `styles.css` به درستی در `<head>` صفحه لینک شده است و مسیر آن صحیح است.
     -   بررسی کنید که آیا استایل‌های دیگری در پروژه شما، استایل‌های «دبیر» را بازنویسی (override) می‌کنند یا خیر.
 
 -   **پلاگین‌ها کار نمی‌کنند:**
