@@ -364,7 +364,7 @@ export class KeyboardHandler {
             
             if (currentBlock) {
                 const blockParsed = this._tryToParseBlock(currentBlock, event.key);
-                if (!blockParsed && currentBlock.tagName === 'DIV') {
+                if (!blockParsed) {
                     this._tryToParseInline(currentBlock);
                 }
             }

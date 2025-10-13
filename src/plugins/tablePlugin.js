@@ -1,6 +1,6 @@
-
 import Plugin from './plugin.js';
 import { moveCursorToEnd } from '../utils/dom.js';
+import { parseInline } from '../parsers/inlineParser.js';
 
 export class TablePlugin extends Plugin {
     /**
@@ -45,7 +45,7 @@ export class TablePlugin extends Plugin {
 
         const headers = headerLine.split('|').slice(1, -1).map(h => h.trim());
         let html = '<table><thead><tr>';
-        headers.forEach(h => { html += `<th>${h}</th>`; });
+        headers.forEach(h => { html += `<th>${parseInline(h)}</th>`; });
         html += '</tr></thead><tbody>';
         
         let i = currentIndex + 2;
@@ -53,7 +53,7 @@ export class TablePlugin extends Plugin {
             const cells = lines[i].split('|').slice(1, -1).map(c => c.trim());
             html += '<tr>';
             for (let j = 0; j < headers.length; j++) {
-                html += `<td>${cells[j] || ''}</td>`;
+                html += `<td>${parseInline(cells[j] || '')}</td>`;
             }
             html += '</tr>';
             i++;
