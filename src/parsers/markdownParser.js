@@ -57,13 +57,17 @@ export class MarkdownParser {
                 i = blockResult.lastIndex;
             } else if (line.trim() === '') {
                 flushParagraph();
-                html += '<div><br></div>';
             } else {
                 paragraphLines.push(line);
             }
         }
 
         flushParagraph();
+        
+        if (!html) {
+            return '<div><br></div>';
+        }
+        
         return html;
     }
 }
