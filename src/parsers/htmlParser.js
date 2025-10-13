@@ -26,8 +26,10 @@ export class HtmlParser {
         if (node.nodeType === Node.TEXT_NODE) return node.textContent;
         if (node.nodeType !== Node.ELEMENT_NODE) return '';
 
+        const recurse = (n, ls) => this._convertNodeToMarkdown(n, ls);
+
         let childMarkdown = Array.from(node.childNodes)
-            .map(child => this._convertNodeToMarkdown(child, listState))
+            .map(child => recurse(child, listState))
             .join('');
 
         switch (node.tagName) {
@@ -44,8 +46,12 @@ export class HtmlParser {
             case 'BR': return '\n';
             case 'HR': return '\n---\n\n';
             case 'DIV': case 'P': return `${childMarkdown}\n\n`;
-            case 'BLOCKQUOTE':
-                return childMarkdown.trim().split('\n').map(line => `> ${line}`).join('\n') + '\n\n';
+            case 'BLOCKQUOTE': {
+                const lines = Array.from(node.childNodes)
+                    .map(child => recurse(child, listState).trim())
+                    .flatMap(line => line.split('\n'));
+                return lines.map(line => `> ${line || ''}`).join('\n') + '\n\n';
+            }
             case 'FIGURE':
                 const img = node.querySelector('img');
                 const caption = node.querySelector('figcaption');
@@ -57,7 +63,7 @@ export class HtmlParser {
                 // Propagate markdown from plugins
                 for(const plugin of this.editor.plugins.keys()){
                     if(this.editor.plugins.get(plugin).html2md){
-                        const markdown = this.editor.plugins.get(plugin).html2md(node, childMarkdown, listState, this._convertNodeToMarkdown.bind(this));
+                        const markdown = this.editor.plugins.get(plugin).html2md(node, childMarkdown, listState, recurse);
                         if(markdown) return markdown;
                     }
                 }

@@ -8,7 +8,10 @@ export class ListPlugin extends Plugin {
     static install(editor) {
         editor.keyboardHandler.register('Tab', [], (e) => this.handleTab(e, editor));
         editor.keyboardHandler.register('Tab', ['Shift'], (e) => this.handleShiftTab(e, editor));
-        return { name: 'ListPlugin', handleShiftTab: this.handleShiftTab };
+        return {
+            name: 'ListPlugin',
+            html2md: this.html2md.bind(this)
+        };
     }
 
     static handleTab(event, editor) {
@@ -55,5 +58,66 @@ export class ListPlugin extends Plugin {
             return true;
         }
         return false;
+    }
+
+    static html2md(node, childMarkdown, listState, recurse) {
+        if (node.tagName !== 'UL' && node.tagName !== 'OL') return null;
+
+        const isTopLevelCall = listState.indent === undefined;
+        if (isTopLevelCall) {
+            listState.indent = 0;
+        } else {
+            listState.indent++;
+        }
+
+        let markdown = '';
+        const listItems = Array.from(node.children).filter(child => child.tagName === 'LI');
+
+        listItems.forEach((li, index) => {
+            const indentStr = '  '.repeat(listState.indent);
+            const isChecklist = li.classList.contains('checklist-item');
+            
+            let prefix = (node.tagName === 'OL') ? `${index + 1}. ` : '- ';
+            if (isChecklist) {
+                const checkbox = li.querySelector('input[type="checkbox"]');
+                prefix += (checkbox && checkbox.checked) ? '[x] ' : '[ ] ';
+            }
+
+            let contentNodes = [];
+            let sublistNode = null;
+            for (const child of li.childNodes) {
+                if (child.tagName === 'UL' || child.tagName === 'OL') {
+                    sublistNode = child;
+                } else {
+                    if (isChecklist) {
+                        if (child.tagName === 'SPAN') {
+                            contentNodes.push(...child.childNodes);
+                        }
+                    } else {
+                        contentNodes.push(child);
+                    }
+                }
+            }
+            
+            const liContent = contentNodes.map(node => recurse(node, listState)).join('');
+            markdown += `${indentStr}${prefix}${liContent.trim()}`;
+            
+            if (sublistNode) {
+                markdown += '\n' + recurse(sublistNode, listState);
+            }
+            markdown += '\n';
+        });
+
+        if (isTopLevelCall) {
+            delete listState.indent;
+        } else {
+            listState.indent--;
+        }
+        
+        if (isTopLevelCall) {
+            return markdown;
+        }
+
+        return markdown.trimEnd();
     }
 }

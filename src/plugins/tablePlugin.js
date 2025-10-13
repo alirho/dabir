@@ -17,7 +17,8 @@ export class TablePlugin extends Plugin {
         editor.keyboardHandler.register('Backspace', [], (e) => this.handleBackspace(e, editor));
 
         return {
-            markdownBlockParser: this.parseMarkdownBlock.bind(this)
+            markdownBlockParser: this.parseMarkdownBlock.bind(this),
+            html2md: this.html2md.bind(this)
         };
     }
 
@@ -248,5 +249,34 @@ export class TablePlugin extends Plugin {
         
         html += '</tbody></table>';
         return { html, lastIndex: i - 1 };
+    }
+
+    static html2md(node, childMarkdown, listState, recurse) {
+        if (node.tagName !== 'TABLE') return null;
+        
+        let markdown = '';
+        const thead = node.querySelector('thead');
+        const tbody = node.querySelector('tbody');
+
+        if (!thead || !tbody) return '';
+
+        const headers = Array.from(thead.querySelectorAll('th')).map(th => recurse(th, listState).trim());
+        markdown += `| ${headers.join(' | ')} |\n`;
+
+        const alignments = Array.from(thead.querySelectorAll('th')).map(th => {
+            const align = th.style.textAlign || 'right';
+            if (align === 'center') return ':---:';
+            if (align === 'left') return ':---';
+            return '---:';
+        });
+        markdown += `| ${alignments.join(' | ')} |\n`;
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.forEach(row => {
+            const cells = Array.from(row.querySelectorAll('td')).map(td => recurse(td, listState).trim().replace(/\|/g, '\\|'));
+            markdown += `| ${cells.join(' | ')} |\n`;
+        });
+
+        return markdown + '\n';
     }
 }
