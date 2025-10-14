@@ -253,36 +253,63 @@ export class KeyboardHandler {
             return false; // Allow default behavior (inserting newline)
         }
     
-        const checklistItem = parentElement.closest('li.checklist-item');
-        if (checklistItem) {
-            const contentSpan = checklistItem.querySelector('span');
-            const isItemEmpty = !contentSpan || contentSpan.textContent.trim().replace(/\u200B/g, '') === '';
+        const listItem = parentElement.closest('li');
+        if (listItem) {
+            const isChecklistItem = listItem.classList.contains('checklist-item');
+            const contentContainer = isChecklistItem ? listItem.querySelector('span') : listItem;
 
-            if (isItemEmpty) {
-                // Exit list functionality
-                const list = checklistItem.parentElement;
-                const listContainer = list.parentElement;
-                const newBlock = document.createElement('div');
-                newBlock.innerHTML = '<br>';
-
-                if (listContainer.tagName === 'LI') { // Nested list -> outdent to a new line
-                    listContainer.after(newBlock);
-                    checklistItem.remove();
-                    if (list.children.length === 0) {
-                        list.remove();
+            const isItemEmpty = (() => {
+                if (!contentContainer) return true;
+                // An item is empty if it has no direct text content. The presence of a sublist (UL/OL)
+                // does not count as content for this purpose.
+                let hasText = false;
+                for (const node of contentContainer.childNodes) {
+                    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim() !== '') {
+                        hasText = true;
+                        break;
                     }
-                } else { // Top-level list -> exit
-                    if (list.children.length === 1) { // It's the only item
-                        list.replaceWith(newBlock);
-                    } else {
-                        list.after(newBlock);
-                        checklistItem.remove();
+                    if (node.nodeType === Node.ELEMENT_NODE && !['UL', 'OL', 'BR'].includes(node.tagName)) {
+                        hasText = true; // e.g., an <img> or <a> tag
+                        break;
                     }
                 }
-                moveCursorToEnd(newBlock);
+                return !hasText;
+            })();
 
-            } else {
-                // Create new checklist item
+            if (isItemEmpty) {
+                // Find the top-most list container
+                let topList = listItem.parentElement;
+                while (topList.parentElement.closest('li')) {
+                    topList = topList.parentElement.closest('ul, ol');
+                }
+
+                const newBlock = document.createElement('div');
+                newBlock.innerHTML = '<br>';
+                
+                // Place the new block after the entire list structure
+                topList.after(newBlock);
+                
+                // Clean up: remove the now-empty item and traverse up, removing any parent lists that become empty
+                let currentList = listItem.parentElement;
+                listItem.remove();
+
+                while (currentList && currentList !== topList && currentList.children.length === 0) {
+                    const parentLi = currentList.parentElement;
+                    currentList.remove();
+                    currentList = parentLi ? parentLi.parentElement : null;
+                }
+
+                // If the top-level list itself is now empty, replace it completely.
+                if (topList.children.length === 0) {
+                    topList.replaceWith(newBlock);
+                }
+
+                moveCursorToEnd(newBlock);
+                this.editor.saveContent();
+                return true; // Prevent default Enter behavior
+            }
+
+            if (isChecklistItem) {
                 const newLi = document.createElement('li');
                 newLi.className = 'checklist-item';
                 
@@ -291,15 +318,16 @@ export class KeyboardHandler {
                 newLi.appendChild(checkbox);
                 
                 const newSpan = document.createElement('span');
-                newSpan.innerHTML = '&#8203;'; // Zero-width space for cursor
+                newSpan.innerHTML = '&#8203;';
                 newLi.appendChild(newSpan);
 
-                checklistItem.after(newLi);
+                listItem.after(newLi);
                 moveCursorToEnd(newSpan);
+                this.editor.saveContent();
+                return true;
             }
 
-            this.editor.saveContent();
-            return true;
+            return false;
         }
 
         const container = parentElement.closest('blockquote, .dabir-admonition');
