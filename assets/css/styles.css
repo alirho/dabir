@@ -1,4 +1,5 @@
 
+
 .dabir-editor {
     background-color: white;
     max-width: 800px;
@@ -291,6 +292,36 @@
     border: none;
     border-top: 1px solid #e0e0e0;
     margin: 2em 0;
+}
+
+.dabir-editor .poem-block {
+    margin: 1.5em 0;
+    padding: 0 2em;
+}
+
+.dabir-editor .couplet {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5em;
+    gap: 1em;
+    text-align: center
+}
+
+.dabir-editor .couplet:last-child {
+    margin-bottom: 0;
+}
+
+.dabir-editor .couplet > span {
+    flex: 1 1 50%;
+    min-width: 0;
+}
+
+.dabir-editor .couplet > span:first-child {
+    text-align: center;
+}
+
+.dabir-editor .couplet > span:last-child {
+    text-align: center;
 }
 
 .dabir-editor .dabir-admonition {

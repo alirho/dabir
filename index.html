@@ -30,6 +30,7 @@
         import { ListPlugin } from './src/plugins/listPlugin.js';
         import { TablePlugin } from './src/plugins/tablePlugin.js';
         import { ShortcutPlugin } from './src/plugins/shortcutPlugin.js';
+        import { PoemPlugin } from './src/plugins/poemPlugin.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             new DabirEditor('#my-editor', {
@@ -39,6 +40,7 @@
                 },
                 plugins: [
                     AdmonitionPlugin,
+                    PoemPlugin,
                     DirectionPlugin,
                     ListPlugin,
                     TablePlugin,
