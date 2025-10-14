@@ -1,3 +1,4 @@
+
 import { parseInline } from '../parsers/inlineParser.js';
 import { parseLiveBlock } from '../parsers/liveParser.js';
 import { moveCursorToEnd } from '../utils/dom.js';
@@ -35,6 +36,7 @@ export class MouseHandler {
 
     onClick(event) {
         const target = event.target;
+
         if (target.matches('li.checklist-item input[type="checkbox"]')) {
             const listItem = target.closest('li.checklist-item');
             if (listItem) {
@@ -51,6 +53,35 @@ export class MouseHandler {
                     });
                     this.editor.saveContent();
                 }, 0);
+            }
+            return;
+        }
+
+        const copyButton = target.closest('.copy-code-btn');
+        if (copyButton) {
+            // Prevent re-triggering if we're already showing the "copied" message.
+            if (copyButton.classList.contains('copied')) {
+                return;
+            }
+
+            const wrapper = copyButton.closest('.code-block-wrapper');
+            const codeElement = wrapper?.querySelector('code');
+            if (codeElement) {
+                navigator.clipboard.writeText(codeElement.innerText).then(() => {
+                    const span = copyButton.querySelector('span');
+                    if (!span) return;
+                    
+                    const originalText = span.textContent;
+                    span.textContent = 'رونوشت شد!';
+                    copyButton.classList.add('copied');
+                    
+                    setTimeout(() => {
+                        span.textContent = originalText;
+                        copyButton.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Dabir.js: Failed to copy text: ', err);
+                });
             }
         }
     }

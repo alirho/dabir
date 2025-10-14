@@ -45,7 +45,12 @@ export class HtmlParser {
             case 'A': return `[${childMarkdown}](${node.getAttribute('href')})`;
             case 'BR': return '\n';
             case 'HR': return '\n---\n\n';
-            case 'DIV': case 'P': return `${childMarkdown}\n\n`;
+            case 'DIV': case 'P':
+                if (node.classList.contains('code-block-wrapper')) {
+                    const preElement = node.querySelector('pre');
+                    return preElement ? this._convertNodeToMarkdown(preElement) : '';
+                }
+                return `${childMarkdown}\n\n`;
             case 'BLOCKQUOTE': {
                 const lines = Array.from(node.childNodes)
                     .map(child => recurse(child, listState).trim())
@@ -58,7 +63,7 @@ export class HtmlParser {
                 const alt = caption ? caption.textContent : (img ? img.alt : '');
                 return `![${alt}](${img ? img.src : ''})\n\n`;
             case 'PRE':
-                return `\`\`\`\n${node.textContent}\n\`\`\`\n\n`;
+                return `\`\`\`\n${node.textContent.replace(/\n$/, '')}\n\`\`\`\n\n`;
             default:
                 // Propagate markdown from plugins
                 for(const plugin of this.editor.plugins.keys()){
