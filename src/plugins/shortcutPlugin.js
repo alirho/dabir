@@ -1,9 +1,10 @@
+
 import Plugin from './plugin.js';
 import { moveCursorToEnd } from '../utils/dom.js';
 
 export class ShortcutPlugin extends Plugin {
     static install(editor) {
-        // --- INLINE FORMATTING ---
+        // --- HELPER: INLINE FORMATTING ---
         const applyInlineFormat = (prefix, suffix = prefix) => {
             const sel = window.getSelection();
             if (!sel || !sel.rangeCount) return true;
@@ -40,8 +41,8 @@ export class ShortcutPlugin extends Plugin {
             if (!sel || !sel.rangeCount) return true;
 
             const range = sel.getRangeAt(0);
-            const selectedText = range.toString();
-            const placeholderUrl = 'url';
+            const selectedText = range.toString() || 'متن پیوند';
+            const placeholderUrl = 'نشانی وب';
             
             range.deleteContents();
             const fullText = `[${selectedText}](${placeholderUrl})`;
@@ -63,21 +64,31 @@ export class ShortcutPlugin extends Plugin {
             return true;
         };
         
-        const inlineShortcuts = {
-            'b': () => applyInlineFormat('**'), 'ذ': () => applyInlineFormat('**'),
-            'i': () => applyInlineFormat('*'), 'ه': () => applyInlineFormat('*'),
-            'u': () => applyInlineFormat('~~'), 'ع': () => applyInlineFormat('~~'),
-            'k': createLink, 'ن': createLink,
-            '`': () => applyInlineFormat('`'), 'پ': () => applyInlineFormat('`'),
+        const insertImagePlaceholder = () => {
+            const sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return true;
+
+            const range = sel.getRangeAt(0);
+            const selectedText = range.toString() || 'متن جایگزین';
+            
+            range.deleteContents();
+            const fullText = `![${selectedText}]()`;
+            const textNode = document.createTextNode(fullText);
+            range.insertNode(textNode);
+
+            const newRange = document.createRange();
+            newRange.setStart(textNode, `![`.length);
+            newRange.setEnd(textNode, `![${selectedText}`.length);
+            
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            
+            editor.saveContent();
+            editor.events.emit('input');
+            return true;
         };
 
-        for (const key in inlineShortcuts) {
-            editor.keyboardHandler.register(key, ['ctrl'], () => {
-                return inlineShortcuts[key]();
-            });
-        }
-
-        // --- BLOCK FORMATTING ---
+        // --- HELPER: BLOCK FORMATTING ---
         const getSelectedBlocks = () => {
             const sel = window.getSelection();
             if (!sel?.rangeCount) return [];
@@ -122,7 +133,6 @@ export class ShortcutPlugin extends Plugin {
                 document.execCommand(format === 'ol' ? 'insertOrderedList' : 'insertUnorderedList');
                 
                 if (format === 'checklist') {
-                    // execCommand is async; we need to wait for the DOM to update.
                     setTimeout(() => {
                         const sel = window.getSelection();
                         if (!sel.rangeCount) return;
@@ -141,7 +151,7 @@ export class ShortcutPlugin extends Plugin {
                             const checkbox = document.createElement('input');
                             checkbox.type = 'checkbox';
                             const span = document.createElement('span');
-                            span.innerHTML = content || '&#8203;'; // Zero-width space for cursor
+                            span.innerHTML = content || '&#8203;';
                             
                             li.appendChild(checkbox);
                             li.appendChild(span);
@@ -159,16 +169,88 @@ export class ShortcutPlugin extends Plugin {
             }
             return true;
         };
+        
+        const applyQuote = () => {
+            const block = getSelectedBlocks()[0];
+            if (!block) return true;
 
-        // Register Heading Shortcuts (Ctrl + 1-4)
+            const range = document.createRange();
+            range.selectNodeContents(block);
+            range.collapse(true);
+            
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            
+            document.execCommand('insertText', false, '> ');
+
+            editor.saveContent();
+            editor.events.emit('input');
+            return true;
+        };
+        
+        const insertCodeBlock = () => {
+             const block = getSelectedBlocks()[0];
+             if (!block) return true;
+
+             const copyButtonHtml = `<button class="copy-code-btn" title="رونوشت کد"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg><span>رونوشت</span></button>`;
+             const codeBlockHtml = `<div class="code-block-wrapper">${copyButtonHtml}<pre><code>&#8203;</code></pre></div>`;
+             
+             const newElement = editor.renderer.createFromHTML(codeBlockHtml);
+             editor.renderer.replace(block, newElement);
+             
+             const codeElement = newElement.querySelector('code');
+             if (codeElement) moveCursorToEnd(codeElement);
+             
+             editor.saveContent();
+             return true;
+        };
+        
+        const insertTable = () => {
+            const block = getSelectedBlocks()[0];
+            if (!block) return true;
+            
+            const tableHtml = `<table><thead><tr><th style="text-align: right;">عنوان ۱</th><th style="text-align: right;">عنوان ۲</th></tr></thead><tbody><tr><td style="text-align: right;"><br></td><td style="text-align: right;"><br></td></tr></tbody></table>`;
+            const newElement = editor.renderer.createFromHTML(tableHtml);
+            
+            if (block.textContent.trim() === '') {
+                editor.renderer.replace(block, newElement);
+            } else {
+                block.after(newElement);
+            }
+            
+            const firstCell = newElement.querySelector('td');
+            if (firstCell) moveCursorToEnd(firstCell);
+            
+            editor.saveContent();
+            return true;
+        };
+
+        // --- REGISTER SHORTCUTS ---
+        
+        // INLINE: Ctrl + Key
+        ['b', 'ذ'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => applyInlineFormat('**')));
+        ['i', 'ه'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => applyInlineFormat('*')));
+        ['u', 'ع'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => applyInlineFormat('~~')));
+        ['k', 'ن'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], createLink));
+        ['`', 'پ'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => applyInlineFormat('`')));
+        
+        // INLINE: Ctrl + Alt + Key
+        ['h', 'ا'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], () => applyInlineFormat('==')));
+        ['i', 'ه'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], insertImagePlaceholder));
+
+        // BLOCK: Ctrl + Number
         ['1', '۱'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => toggleBlockFormat('h1')));
         ['2', '۲'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => toggleBlockFormat('h2')));
         ['3', '۳'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => toggleBlockFormat('h3')));
         ['4', '۴'].forEach(k => editor.keyboardHandler.register(k, ['ctrl'], () => toggleBlockFormat('h4')));
-
-        // Register List Shortcuts (Ctrl + Alt + Key)
+        
+        // BLOCK: Ctrl + Alt + Key
         ['l', 'م'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], () => toggleBlockFormat('ol')));
         ['u', 'ع'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], () => toggleBlockFormat('ul')));
-        ['t', 'ف'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], () => toggleBlockFormat('checklist')));
+        ['b', 'ذ'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], () => toggleBlockFormat('checklist')));
+        ['q', 'ض'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], applyQuote));
+        ['c', 'ز'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], insertCodeBlock));
+        ['t', 'ف'].forEach(k => editor.keyboardHandler.register(k, ['ctrl', 'alt'], insertTable));
     }
 }
