@@ -29,6 +29,7 @@
         import { DirectionPlugin } from './src/plugins/directionPlugin.js';
         import { ListPlugin } from './src/plugins/listPlugin.js';
         import { TablePlugin } from './src/plugins/tablePlugin.js';
+        import { ShortcutPlugin } from './src/plugins/shortcutPlugin.js';
 
         document.addEventListener('DOMContentLoaded', () => {
             new DabirEditor('#my-editor', {
@@ -40,7 +41,8 @@
                     AdmonitionPlugin,
                     DirectionPlugin,
                     ListPlugin,
-                    TablePlugin
+                    TablePlugin,
+                    ShortcutPlugin
                 ]
             });
         });
