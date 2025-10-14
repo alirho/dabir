@@ -1,3 +1,4 @@
+
 .dabir-editor {
     background-color: white;
     max-width: 800px;
@@ -139,15 +140,12 @@
     padding-right: 0;
 }
 
-.dabir-editor li.checklist-item {
+.dabir-editor .checklist-content-wrapper {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
 }
 
 .dabir-editor li.checklist-item > ul.checklist {
-    flex-basis: 100%;
-    width: 100%;
     padding-right: 2.5em;
 }
 

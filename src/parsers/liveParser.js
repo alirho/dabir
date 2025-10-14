@@ -1,3 +1,4 @@
+
 import { parseInline } from './inlineParser.js';
 
 /**
@@ -40,7 +41,7 @@ export function parseLiveBlock(line) {
             const isChecked = checklistInnerMatch[1].toLowerCase() === 'x';
             const contentText = listContent.substring(checklistInnerMatch[0].length);
             const content = parseInline(contentText);
-            return `<ul class="checklist"><li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}><span>${content}</span></li></ul>`;
+            return `<ul class="checklist"><li class="checklist-item${isChecked ? ' checked' : ''}"><div class="checklist-content-wrapper"><input type="checkbox"${isChecked ? ' checked' : ''}><span>${content}</span></div></li></ul>`;
         } else {
             const content = parseInline(listContent);
             return `<${type}><li>${content}</li></${type}>`;

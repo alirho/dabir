@@ -89,7 +89,7 @@ export class KeyboardHandler {
             const listItem = parentElement.closest('li.checklist-item');
             
             if (listItem) {
-                const contentContainer = listItem.querySelector('span');
+                const contentContainer = listItem.querySelector('.checklist-content-wrapper > span');
                 if (contentContainer && contentContainer.contains(range.startContainer)) {
                     const preCursorRange = document.createRange();
                     preCursorRange.selectNodeContents(contentContainer);
@@ -97,12 +97,10 @@ export class KeyboardHandler {
                     if (preCursorRange.toString().trim() === '') {
                         // At the start of the item, convert to normal list item.
                         const list = listItem.parentElement;
-                        const checkbox = listItem.querySelector('input[type="checkbox"]');
-                        if (checkbox) checkbox.remove();
-
-                        const contentNodes = contentContainer ? Array.from(contentContainer.childNodes) : [];
-                        if (contentContainer) {
-                            contentContainer.replaceWith(...contentNodes);
+                        const wrapper = listItem.querySelector('.checklist-content-wrapper');
+                        if (wrapper) {
+                            const contentNodes = contentContainer ? Array.from(contentContainer.childNodes) : [];
+                            wrapper.replaceWith(...contentNodes);
                         }
 
                         if (listItem.textContent.trim() === '') {
@@ -256,7 +254,7 @@ export class KeyboardHandler {
         const listItem = parentElement.closest('li');
         if (listItem) {
             const isChecklistItem = listItem.classList.contains('checklist-item');
-            const contentContainer = isChecklistItem ? listItem.querySelector('span') : listItem;
+            const contentContainer = isChecklistItem ? listItem.querySelector('.checklist-content-wrapper > span') : listItem;
 
             const isItemEmpty = (() => {
                 if (!contentContainer) return true;
@@ -315,11 +313,15 @@ export class KeyboardHandler {
                 
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                newLi.appendChild(checkbox);
                 
                 const newSpan = document.createElement('span');
-                newSpan.innerHTML = '&#8203;';
-                newLi.appendChild(newSpan);
+                newSpan.innerHTML = '<br>';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'checklist-content-wrapper';
+                wrapper.appendChild(checkbox);
+                wrapper.appendChild(newSpan);
+                newLi.appendChild(wrapper);
 
                 listItem.after(newLi);
                 moveCursorToEnd(newSpan);
@@ -436,11 +438,15 @@ export class KeyboardHandler {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = isChecked;
-            listItem.appendChild(checkbox);
     
             const contentSpan = document.createElement('span');
-            contentSpan.innerHTML = contentHTML || '&#8203;'; // Zero-width space
-            listItem.appendChild(contentSpan);
+            contentSpan.innerHTML = contentHTML || '<br>';
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = 'checklist-content-wrapper';
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(contentSpan);
+            listItem.appendChild(wrapper);
     
             if (sublist) listItem.appendChild(sublist);
     

@@ -153,8 +153,11 @@ export class ShortcutPlugin extends Plugin {
                             const span = document.createElement('span');
                             span.innerHTML = content || '&#8203;';
                             
-                            li.appendChild(checkbox);
-                            li.appendChild(span);
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'checklist-content-wrapper';
+                            wrapper.appendChild(checkbox);
+                            wrapper.appendChild(span);
+                            li.appendChild(wrapper);
                         });
 
                         const firstSpan = list.querySelector('li span');

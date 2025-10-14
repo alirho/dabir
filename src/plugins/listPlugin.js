@@ -1,3 +1,4 @@
+
 import Plugin from './plugin.js';
 import { moveCursorToEnd } from '../utils/dom.js';
 
@@ -103,8 +104,11 @@ export class ListPlugin extends Plugin {
                     sublistNode = child;
                 } else {
                     if (isChecklist) {
-                        if (child.tagName === 'SPAN') {
-                            contentNodes.push(...child.childNodes);
+                        if (child.classList && child.classList.contains('checklist-content-wrapper')) {
+                            const span = child.querySelector('span');
+                            if (span) {
+                                contentNodes.push(...span.childNodes);
+                            }
                         }
                     } else {
                         contentNodes.push(child);

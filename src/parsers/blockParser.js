@@ -46,7 +46,7 @@ function processListBlock(lines, startIndex) {
         if (isChecklist) {
             const isChecked = content.startsWith('[x] ');
             content = content.substring(4);
-            html += `<li class="checklist-item${isChecked ? ' checked' : ''}"><input type="checkbox"${isChecked ? ' checked' : ''}><span>${parseInline(content)}</span></li>`;
+            html += `<li class="checklist-item${isChecked ? ' checked' : ''}"><div class="checklist-content-wrapper"><input type="checkbox"${isChecked ? ' checked' : ''}><span>${parseInline(content)}</span></div></li>`;
         } else {
             html += `<li>${parseInline(content)}</li>`;
         }
